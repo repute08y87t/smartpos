@@ -1,11 +1,25 @@
 const express = require('express');
 const path = require('path');
 const { createClient } = require('@libsql/client');
+const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Debug endpoint - check database file
+app.get('/api/debug', (req, res) => {
+    const dbPath = path.join(__dirname, 'data', 'pos.db');
+    const exists = fs.existsSync(dbPath);
+    let files = [];
+    try {
+        files = fs.readdirSync(path.join(__dirname, 'data'));
+    } catch(e) {
+        files = ['data folder error: ' + e.message];
+    }
+    res.json({ dbPath, exists, cwd: __dirname, files });
+});
 
 // Local SQLite database using libsql (file-based)
 const db = createClient({
