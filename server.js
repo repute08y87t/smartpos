@@ -21,6 +21,16 @@ app.get('/api/debug', (req, res) => {
     res.json({ dbPath, exists, cwd: __dirname, files });
 });
 
+// Test users endpoint
+app.get('/api/test-users', async (req, res) => {
+    try {
+        const result = await runQuery('SELECT id, username, role FROM users LIMIT 5');
+        res.json({ success: true, users: result.rows });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
 // Local SQLite database using libsql (file-based)
 const db = createClient({
     url: `file:${path.join(__dirname, 'data', 'pos.db')}`
@@ -400,28 +410,34 @@ async function getSaleData(receipt_no, res) {
 
 app.post('/api/auth/cashier', async (req, res) => {
     const { pin } = req.body;
+    console.log('Cashier login attempt:', pin);
     try {
         const result = await runQuery('SELECT id, username, full_name, role FROM users WHERE role = "cashier" AND pin = ? AND is_active = 1', [pin]);
+        console.log('Cashier result:', result.rows);
         if (result.rows.length === 0) {
             res.json({ success: false, error: 'Invalid PIN' });
         } else {
             res.json({ success: true, user: result.rows[0] });
         }
     } catch (err) {
+        console.error('Cashier login error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
 app.post('/api/auth/owner', async (req, res) => {
     const { username, password } = req.body;
+    console.log('Owner login attempt:', username, password);
     try {
         const result = await runQuery('SELECT id, username, full_name, role FROM users WHERE role = "owner" AND username = ? AND password = ? AND is_active = 1', [username, password]);
+        console.log('Owner query result:', result.rows);
         if (result.rows.length === 0) {
             res.json({ success: false, error: 'Invalid username or password' });
         } else {
             res.json({ success: true, user: result.rows[0] });
         }
     } catch (err) {
+        console.error('Owner login error:', err);
         res.status(500).json({ error: err.message });
     }
 });
