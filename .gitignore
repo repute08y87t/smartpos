@@ -1,3 +1,2 @@
-node_modules/ 
-data/pos.db 
-.env 
+node_modules/
+.env
