@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Local SQLite database using libsql (file-based, works on Render)
+// Local SQLite database using libsql (file-based)
 const db = createClient({
     url: `file:${path.join(__dirname, 'data', 'pos.db')}`
 });
@@ -18,7 +18,7 @@ async function runQuery(sql, params = []) {
         const result = await db.execute({ sql, args: params });
         return { rows: result.rows };
     } catch (err) {
-        console.error('Query error:', err);
+        console.error('Query error:', err.message);
         throw err;
     }
 }
@@ -26,9 +26,9 @@ async function runQuery(sql, params = []) {
 async function run(sql, params = []) {
     try {
         const result = await db.execute({ sql, args: params });
-        return { lastID: result.lastInsertRowId, changes: result.rowsAffected };
+        return { lastID: Number(result.lastInsertRowId), changes: result.rowsAffected };
     } catch (err) {
-        console.error('Run error:', err);
+        console.error('Run error:', err.message);
         throw err;
     }
 }
@@ -53,7 +53,7 @@ app.post('/api/products', async (req, res) => {
             'INSERT INTO products (name, price, cost_price, stock, sku, category, subcategory, brand, pack_size, pack_cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [name, price, cost_price || 0, stock || 0, sku || null, category || 'General', subcategory || '', brand || '', pack_size || 1, pack_cost || 0]
         );
-        res.json({ id: Number(result.lastID), message: 'Product added' });
+        res.json({ id: result.lastID, message: 'Product added' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
