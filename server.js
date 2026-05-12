@@ -412,7 +412,7 @@ app.post('/api/auth/cashier', async (req, res) => {
     const { pin } = req.body;
     console.log('Cashier login attempt:', pin);
     try {
-        const result = await runQuery('SELECT id, username, full_name, role FROM users WHERE role = "cashier" AND pin = ? AND is_active = 1', [pin]);
+        const result = await runQuery('SELECT id, username, full_name, role FROM users WHERE role = \'cashier\' AND pin = ? AND is_active = 1', [pin]);
         console.log('Cashier result:', result.rows);
         if (result.rows.length === 0) {
             res.json({ success: false, error: 'Invalid PIN' });
@@ -429,7 +429,7 @@ app.post('/api/auth/owner', async (req, res) => {
     const { username, password } = req.body;
     console.log('Owner login attempt:', username, password);
     try {
-        const result = await runQuery('SELECT id, username, full_name, role FROM users WHERE role = "owner" AND username = ? AND password = ? AND is_active = 1', [username, password]);
+        const result = await runQuery('SELECT id, username, full_name, role FROM users WHERE role = \'owner\' AND username = ? AND password = ? AND is_active = 1', [username, password]);
         console.log('Owner query result:', result.rows);
         if (result.rows.length === 0) {
             res.json({ success: false, error: 'Invalid username or password' });
