@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPOS - Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial; background: #0f172a; color: white; padding: 20px; }
+        .container { max-width: 1400px; margin: auto; }
+        
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding: 15px 20px; background: #1e293b; border-radius: 12px; }
+        .header h1 { font-size: 24px; color: #f97316; }
+        .back-btn { background: #f97316; padding: 10px 25px; border-radius: 8px; cursor: pointer; border: none; color: white; font-weight: bold; }
+        .back-btn:hover { background: #ea580c; }
+        
+        /* Tabs */
+        .tabs { display: flex; gap: 5px; margin-bottom: 25px; flex-wrap: wrap; }
+        .tab-btn { background: #1e293b; padding: 12px 28px; border-radius: 10px 10px 0 0; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .tab-btn.active { background: #f97316; }
+        .tab-btn:hover:not(.active) { background: #334155; }
+        
+        /* Tab Content */
+        .tab-content { display: none; background: #1e293b; border-radius: 12px; padding: 25px; }
+        .tab-content.active { display: block; }
+        
+        /* Cards */
+        .card { background: #0f172a; padding: 20px; border-radius: 12px; margin-bottom: 25px; }
+        .card h2 { color: #f97316; font-size: 20px; margin-bottom: 15px; border-left: 4px solid #f97316; padding-left: 12px; }
+        .card h3 { color: #94a3b8; font-size: 16px; margin-bottom: 12px; }
+        
+        /* Forms */
+        .form-row { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px; }
+        .form-group { flex: 1; min-width: 180px; }
+        label { display: block; margin-bottom: 6px; font-size: 13px; color: #94a3b8; }
+        input, select { width: 100%; padding: 10px 12px; border-radius: 8px; border: none; background: #1e293b; color: white; font-size: 14px; }
+        input:focus, select:focus { outline: 2px solid #f97316; }
+        
+        /* Buttons */
+        .btn { background: #f97316; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn:hover { background: #ea580c; }
+        .btn-green { background: #22c55e; }
+        .btn-green:hover { background: #16a34a; }
+        .btn-red { background: #ef4444; }
+        .btn-red:hover { background: #dc2626; }
+        .btn-yellow { background: #eab308; color: #1e293b; }
+        .btn-yellow:hover { background: #ca8a04; }
+        
+        /* Lists */
+        .list-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .list-item { background: #1e293b; padding: 8px 15px; border-radius: 8px; display: flex; align-items: center; gap: 12px; }
+        .list-item span { font-size: 14px; }
+        
+        /* Table */
+        .table-container { overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; }
+        th { background: #0f172a; color: #f97316; font-weight: bold; }
+        tr:hover { background: #334155; }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 16px;
+            width: 450px;
+            max-width: 90%;
+        }
+        .modal-content h3 { color: #f97316; margin-bottom: 20px; font-size: 20px; }
+        .modal-content input { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: none; background: #0f172a; color: white; }
+        .modal-buttons { display: flex; gap: 12px; margin-top: 10px; }
+        .modal-buttons button { flex: 1; padding: 12px; }
+        
+        /* Success message */
+        .success { background: #22c55e; padding: 12px; border-radius: 8px; margin-bottom: 20px; text-align: center; display: none; }
+        
+        /* Search */
+        .search-box input { width: 300px; background: #1e293b; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>⚙️ Product Management</h1>
+        <button class="back-btn" onclick="window.location.href='index.html'">← Back to POS</button>
+    </div>
+
+    <div id="successMsg" class="success"></div>
+
+    <div class="tabs">
+        <div class="tab-btn active" data-tab="categories">📁 Categories</div>
+        <div class="tab-btn" data-tab="subcategories">📂 Subcategories</div>
+        <div class="tab-btn" data-tab="brands">🏷️ Brands</div>
+        <div class="tab-btn" data-tab="products">📦 Products</div>
+    </div>
+
+    <!-- Categories Tab -->
+    <div id="tab-categories" class="tab-content active">
+        <div class="card">
+            <h2>➕ Add New Category</h2>
+            <div class="form-row">
+                <div class="form-group" style="flex:2">
+                    <input type="text" id="catName" placeholder="Category name (e.g., Electronics, Bakery, Dairy)">
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-green" onclick="addCategory()">Add Category</button>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>📋 All Categories</h2>
+            <div id="categoryList" class="list-container">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Subcategories Tab -->
+    <div id="tab-subcategories" class="tab-content">
+        <div class="card">
+            <h2>➕ Add New Subcategory</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <select id="subCatSelect">
+                        <option value="">Select Category</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:2">
+                    <input type="text" id="subName" placeholder="Subcategory name (e.g., Breads, Cakes)">
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-green" onclick="addSubcategory()">Add Subcategory</button>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>📋 Subcategories</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <select id="filterSubCat" onchange="loadSubcategories()">
+                        <option value="">Filter by Category</option>
+                    </select>
+                </div>
+            </div>
+            <div id="subcategoryList" class="list-container">Select a category above</div>
+        </div>
+    </div>
+
+    <!-- Brands Tab -->
+    <div id="tab-brands" class="tab-content">
+        <div class="card">
+            <h2>➕ Add New Brand</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <select id="brandCatSelect">
+                        <option value="">Select Category</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select id="brandSubSelect">
+                        <option value="">Select Subcategory (Optional)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:2">
+                    <input type="text" id="brandName" placeholder="Brand name (e.g., Supaloaf, Brookside)">
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-green" onclick="addBrand()">Add Brand</button>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>📋 Brands</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <select id="filterBrandCat" onchange="loadBrands()">
+                        <option value="">Filter by Category</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select id="filterBrandSub" onchange="loadBrands()">
+                        <option value="">All Subcategories</option>
+                    </select>
+                </div>
+            </div>
+            <div id="brandList" class="list-container">Select a category above</div>
+        </div>
+    </div>
+
+    <!-- Products Tab -->
+    <div id="tab-products" class="tab-content">
+        <div class="card">
+            <h2>➕ Add New Product</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <select id="prodCatSelect">
+                        <option value="">Select Category</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select id="prodSubSelect">
+                        <option value="">Select Subcategory</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select id="prodBrandSelect">
+                        <option value="">Select Brand</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <input type="text" id="prodSize" placeholder="Size (e.g., 500ml, 1kg, 400g)">
+                </div>
+                <div class="form-group">
+                    <input type="number" id="prodPrice" placeholder="Selling Price (KSh)">
+                </div>
+                <div class="form-group">
+                    <input type="number" id="prodCost" placeholder="Cost Price (KSh)">
+                </div>
+                <div class="form-group">
+                    <input type="number" id="prodStock" placeholder="Stock Quantity">
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-green" onclick="addProduct()">Add Product</button>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>📋 All Products</h2>
+            <div class="search-box" style="margin-bottom: 15px;">
+                <input type="text" id="searchProduct" placeholder="🔍 Search products..." onkeyup="loadProducts()">
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Product Name</th><th>Size</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="productList"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <h3 id="editModalTitle">Edit</h3>
+        <input type="text" id="editInput" placeholder="New name">
+        <div class="modal-buttons">
+            <button class="btn btn-green" onclick="confirmEdit()">Save</button>
+            <button class="btn btn-red" onclick="closeEditModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div id="editProductModal" class="modal">
+    <div class="modal-content">
+        <h3>✏️ Edit Product</h3>
+        <input type="text" id="editProdName" placeholder="Product Name">
+        <input type="text" id="editProdSize" placeholder="Size">
+        <input type="number" id="editProdPrice" placeholder="Price">
+        <input type="number" id="editProdCost" placeholder="Cost">
+        <input type="number" id="editProdStock" placeholder="Stock">
+        <div class="modal-buttons">
+            <button class="btn btn-green" onclick="saveProductEdit()">Save Changes</button>
+            <button class="btn btn-red" onclick="closeProductEditModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let allProducts = [];
+let editType = null;
+let editOldName = null;
+let editCategoryVar = null;
+let editProductId = null;
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        let tab = this.getAttribute('data-tab');
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+        
+        // Load data when tab opens
+        if (tab === 'subcategories') loadSubcategories();
+        if (tab === 'brands') loadBrands();
+        if (tab === 'products') loadProducts();
+    });
+});
+
+// ============ CATEGORIES ============
+async function loadCategories() {
+    let res = await fetch('/api/categories');
+    let cats = await res.json();
+    let html = '';
+    for (let c of cats) {
+        html += `<div class="list-item">
+            <span>📁 ${c.name}</span>
+            <button class="btn-yellow" style="padding:4px 12px" onclick="editCategory('${c.name}')">Edit</button>
+            <button class="btn-red" style="padding:4px 12px" onclick="deleteCategory('${c.name}')">Delete</button>
+        </div>`;
+    }
+    document.getElementById('categoryList').innerHTML = html || '<div style="color:#888;">No categories yet</div>';
+    
+    // Update all category dropdowns
+    let selects = ['subCatSelect', 'filterSubCat', 'brandCatSelect', 'filterBrandCat', 'prodCatSelect'];
+    for (let s of selects) {
+        let sel = document.getElementById(s);
+        if (sel) {
+            let currentVal = sel.value;
+            sel.innerHTML = '<option value="">Select Category</option>';
+            for (let c of cats) {
+                sel.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+            }
+            if (currentVal && cats.some(c => c.name === currentVal)) sel.value = currentVal;
+        }
+    }
+}
+
+async function addCategory() {
+    let name = document.getElementById('catName').value.trim();
+    if (!name) { showMessage('Enter category name', 'error'); return; }
+    await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name })
+    });
+    document.getElementById('catName').value = '';
+    await loadCategories();
+    showMessage('Category added successfully');
+}
+
+function editCategory(name) {
+    editType = 'category';
+    editOldName = name;
+    document.getElementById('editModalTitle').innerText = 'Edit Category';
+    document.getElementById('editInput').value = name;
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+async function deleteCategory(name) {
+    if (!confirm(`Delete category "${name}"? Products will be moved to "General".`)) return;
+    await fetch('/api/categories/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: name })
+    });
+    await loadCategories();
+    await loadProducts();
+    showMessage('Category deleted');
+}
+
+// ============ SUBCATEGORIES ============
+async function loadSubcategories() {
+    let cat = document.getElementById('filterSubCat').value;
+    if (!cat) {
+        document.getElementById('subcategoryList').innerHTML = '<div style="color:#888;">Select a category to view subcategories</div>';
+        return;
+    }
+    let res = await fetch('/api/subcategories?category=' + encodeURIComponent(cat));
+    let subs = await res.json();
+    let html = '';
+    for (let s of subs) {
+        let name = s.name || s;
+        html += `<div class="list-item">
+            <span>📂 ${name}</span>
+            <button class="btn-yellow" style="padding:4px 12px" onclick="editSubcategory('${cat}', '${name}')">Edit</button>
+            <button class="btn-red" style="padding:4px 12px" onclick="deleteSubcategory('${cat}', '${name}')">Delete</button>
+        </div>`;
+    }
+    document.getElementById('subcategoryList').innerHTML = html || '<div style="color:#888;">No subcategories yet</div>';
+}
+
+async function addSubcategory() {
+    let cat = document.getElementById('subCatSelect').value;
+    let name = document.getElementById('subName').value.trim();
+    if (!cat) { showMessage('Select a category first', 'error'); return; }
+    if (!name) { showMessage('Enter subcategory name', 'error'); return; }
+    await fetch('/api/subcategories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, category: cat })
+    });
+    document.getElementById('subName').value = '';
+    await loadSubcategories();
+    showMessage('Subcategory added');
+}
+
+function editSubcategory(cat, name) {
+    editType = 'subcategory';
+    editOldName = name;
+    editCategoryVar = cat;
+    document.getElementById('editModalTitle').innerText = 'Edit Subcategory';
+    document.getElementById('editInput').value = name;
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+async function deleteSubcategory(cat, name) {
+    if (!confirm(`Delete subcategory "${name}"?`)) return;
+    await fetch('/api/subcategories/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: cat, subcategory: name })
+    });
+    await loadSubcategories();
+    await loadProducts();
+    showMessage('Subcategory deleted');
+}
+
+// ============ BRANDS ============
+async function loadBrands() {
+    let cat = document.getElementById('filterBrandCat').value;
+    if (!cat) {
+        document.getElementById('brandList').innerHTML = '<div style="color:#888;">Select a category to view brands</div>';
+        return;
+    }
+    let sub = document.getElementById('filterBrandSub').value;
+    let url = '/api/brands?category=' + encodeURIComponent(cat);
+    if (sub && sub !== 'All Subcategories') url += '&subcategory=' + encodeURIComponent(sub);
+    let res = await fetch(url);
+    let brands = await res.json();
+    let html = '';
+    for (let b of brands) {
+        html += `<div class="list-item"><span>🏷️ ${b}</span></div>`;
+    }
+    document.getElementById('brandList').innerHTML = html || '<div style="color:#888;">No brands yet</div>';
+}
+
+async function addBrand() {
+    let cat = document.getElementById('brandCatSelect').value;
+    let sub = document.getElementById('brandSubSelect').value;
+    let name = document.getElementById('brandName').value.trim();
+    if (!cat) { showMessage('Select a category first', 'error'); return; }
+    if (!name) { showMessage('Enter brand name', 'error'); return; }
+    await fetch('/api/brands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, category: cat, subcategory: sub || '' })
+    });
+    document.getElementById('brandName').value = '';
+    await loadBrands();
+    showMessage('Brand added');
+}
+
+// Load subcategory dropdown for brands
+async function loadBrandSubcategories() {
+    let cat = document.getElementById('brandCatSelect').value;
+    if (cat) {
+        let res = await fetch('/api/subcategories?category=' + encodeURIComponent(cat));
+        let subs = await res.json();
+        let html = '<option value="">Select Subcategory (Optional)</option>';
+        for (let s of subs) {
+            let n = s.name || s;
+            html += `<option value="${n}">${n}</option>`;
+        }
+        document.getElementById('brandSubSelect').innerHTML = html;
+    } else {
+        document.getElementById('brandSubSelect').innerHTML = '<option value="">Select Subcategory (Optional)</option>';
+    }
+}
+
+// Load subcategory dropdown for filter
+async function loadFilterSubcategories() {
+    let cat = document.getElementById('filterBrandCat').value;
+    if (cat) {
+        let res = await fetch('/api/subcategories?category=' + encodeURIComponent(cat));
+        let subs = await res.json();
+        let html = '<option value="All Subcategories">All Subcategories</option>';
+        for (let s of subs) {
+            let n = s.name || s;
+            html += `<option value="${n}">${n}</option>`;
+        }
+        document.getElementById('filterBrandSub').innerHTML = html;
+    } else {
+        document.getElementById('filterBrandSub').innerHTML = '<option value="All Subcategories">All Subcategories</option>';
+    }
+}
+
+// ============ PRODUCTS ============
+async function loadProducts() {
+    let res = await fetch('/api/products');
+    allProducts = await res.json();
+    let search = document.getElementById('searchProduct').value.toLowerCase();
+    let filtered = allProducts.filter(p => p.name.toLowerCase().includes(search));
+    let html = '';
+    for (let p of filtered) {
+        html += `<tr>
+            <td>${p.id}</td>
+            <td>${p.name}</td>
+            <td>${p.size || '-'}</td>
+            <td>KSh ${p.price}</td>
+            <td>${p.stock}</td>
+            <td>
+                <button class="btn-yellow" style="padding:4px 10px" onclick="editProduct(${p.id})">Edit</button>
+                <button class="btn-red" style="padding:4px 10px" onclick="deleteProduct(${p.id})">Delete</button>
+            </td>
+        </tr>`;
+    }
+    document.getElementById('productList').innerHTML = html || '<tr><td colspan="6">No products found</td></tr>';
+}
+
+async function loadProductSubcategories() {
+    let cat = document.getElementById('prodCatSelect').value;
+    if (!cat) {
+        document.getElementById('prodSubSelect').innerHTML = '<option value="">Select Subcategory</option>';
+        return;
+    }
+    let res = await fetch('/api/subcategories?category=' + encodeURIComponent(cat));
+    let subs = await res.json();
+    let html = '<option value="">Select Subcategory</option>';
+    for (let s of subs) {
+        let n = s.name || s;
+        html += `<option value="${n}">${n}</option>`;
+    }
+    document.getElementById('prodSubSelect').innerHTML = html;
+}
+
+async function loadProductBrands() {
+    let cat = document.getElementById('prodCatSelect').value;
+    let sub = document.getElementById('prodSubSelect').value;
+    if (!cat) return;
+    let url = '/api/brands?category=' + encodeURIComponent(cat);
+    if (sub) url += '&subcategory=' + encodeURIComponent(sub);
+    let res = await fetch(url);
+    let brands = await res.json();
+    let html = '<option value="">Select Brand</option>';
+    for (let b of brands) {
+        html += `<option value="${b}">${b}</option>`;
+    }
+    document.getElementById('prodBrandSelect').innerHTML = html;
+}
+
+async function addProduct() {
+    let cat = document.getElementById('prodCatSelect').value;
+    let sub = document.getElementById('prodSubSelect').value;
+    let brand = document.getElementById('prodBrandSelect').value;
+    let size = document.getElementById('prodSize').value.trim();
+    let price = parseFloat(document.getElementById('prodPrice').value);
+    let cost = parseFloat(document.getElementById('prodCost').value) || 0;
+    let stock = parseFloat(document.getElementById('prodStock').value) || 0;
+    
+    if (!cat || !sub || !brand) { showMessage('Select category, subcategory, and brand', 'error'); return; }
+    if (!size) { showMessage('Enter product size', 'error'); return; }
+    if (isNaN(price)) { showMessage('Enter selling price', 'error'); return; }
+    
+    let name = `${brand} ${size}`;
+    await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, size, price, cost_price: cost, stock, category: cat, subcategory: sub, brand })
+    });
+    
+    document.getElementById('prodSize').value = '';
+    document.getElementById('prodPrice').value = '';
+    document.getElementById('prodCost').value = '';
+    document.getElementById('prodStock').value = '';
+    await loadProducts();
+    showMessage('Product added successfully');
+}
+
+function editProduct(id) {
+    let product = allProducts.find(p => p.id === id);
+    if (!product) return;
+    editProductId = id;
+    document.getElementById('editProdName').value = product.name || '';
+    document.getElementById('editProdSize').value = product.size || '';
+    document.getElementById('editProdPrice').value = product.price || 0;
+    document.getElementById('editProdCost').value = product.cost_price || 0;
+    document.getElementById('editProdStock').value = product.stock || 0;
+    document.getElementById('editProductModal').style.display = 'flex';
+}
+
+async function saveProductEdit() {
+    let name = document.getElementById('editProdName').value;
+    let size = document.getElementById('editProdSize').value;
+    let price = parseFloat(document.getElementById('editProdPrice').value);
+    let cost = parseFloat(document.getElementById('editProdCost').value) || 0;
+    let stock = parseFloat(document.getElementById('editProdStock').value);
+    
+    await fetch('/api/products/' + editProductId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, size, price, cost_price: cost, stock })
+    });
+    closeProductEditModal();
+    await loadProducts();
+    showMessage('Product updated');
+}
+
+async function deleteProduct(id) {
+    if (!confirm('Delete this product?')) return;
+    await fetch('/api/products/' + id, { method: 'DELETE' });
+    await loadProducts();
+    showMessage('Product deleted');
+}
+
+// ============ EDIT CONFIRMATION ============
+async function confirmEdit() {
+    let newName = document.getElementById('editInput').value.trim();
+    if (!newName) return;
+    
+    if (editType === 'category') {
+        await fetch('/api/categories/edit', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_name: editOldName, new_name: newName })
+        });
+        await loadCategories();
+    } else if (editType === 'subcategory') {
+        await fetch('/api/subcategories/edit', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category: editCategoryVar, old_name: editOldName, new_name: newName })
+        });
+        await loadSubcategories();
+    }
+    closeEditModal();
+    await loadProducts();
+    showMessage('Updated successfully');
+}
+
+// ============ MODAL CONTROLS ============
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+    editType = null;
+}
+
+function closeProductEditModal() {
+    document.getElementById('editProductModal').style.display = 'none';
+    editProductId = null;
+}
+
+// ============ UTILITIES ============
+function showMessage(msg, type = 'success') {
+    let div = document.getElementById('successMsg');
+    div.innerText = msg;
+    div.style.background = type === 'error' ? '#ef4444' : '#22c55e';
+    div.style.display = 'block';
+    setTimeout(() => div.style.display = 'none', 3000);
+}
+
+// Event listeners
+document.getElementById('subCatSelect').onchange = () => {};
+document.getElementById('filterSubCat').onchange = () => loadSubcategories();
+document.getElementById('brandCatSelect').onchange = () => { loadBrandSubcategories(); loadBrands(); };
+document.getElementById('filterBrandCat').onchange = () => { loadFilterSubcategories(); loadBrands(); };
+document.getElementById('filterBrandSub').onchange = () => loadBrands();
+document.getElementById('prodCatSelect').onchange = () => { loadProductSubcategories(); };
+document.getElementById('prodSubSelect').onchange = () => { loadProductBrands(); };
+
+// Initialize
+loadCategories();
+loadProducts();
+</script>
+</body>
+</html>

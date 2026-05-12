@@ -1,0 +1,246 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    price REAL NOT NULL,
+    stock REAL DEFAULT 0,
+    sku TEXT UNIQUE,
+    category TEXT DEFAULT 'General',
+    subcategory TEXT DEFAULT '',
+    brand TEXT DEFAULT '',
+    size TEXT DEFAULT '',
+    cost_price REAL DEFAULT 0,
+    pack_size INTEGER DEFAULT 1,
+    pack_cost REAL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS sales (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    receipt_no TEXT UNIQUE NOT NULL,
+    subtotal REAL NOT NULL,
+    discount_amount REAL DEFAULT 0,
+    tax_amount REAL DEFAULT 0,
+    total REAL NOT NULL,
+    status TEXT DEFAULT 'completed',
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    payment_timestamp DATETIME,
+    method TEXT DEFAULT 'cash',
+    phone TEXT,
+    receipt_code TEXT,
+    parent_receipt TEXT
+);
+CREATE TABLE IF NOT EXISTS sale_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sale_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    qty REAL NOT NULL,
+    unit_price REAL NOT NULL,
+    total_price REAL NOT NULL,
+    cost_price REAL DEFAULT 0,
+    FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('owner', 'cashier')),
+    pin TEXT,
+    full_name TEXT NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS shifts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    opened_at DATETIME NOT NULL,
+    closed_at DATETIME,
+    opening_cash REAL DEFAULT 0,
+    opening_mpesa REAL DEFAULT 0,
+    cash_sales REAL DEFAULT 0,
+    mpesa_sales REAL DEFAULT 0,
+    cash_out REAL DEFAULT 0,
+    total_cash_in REAL DEFAULT 0,
+    total_cash_out REAL DEFAULT 0,
+    expected_cash REAL DEFAULT 0,
+    expected_mpesa REAL DEFAULT 0,
+    actual_cash REAL,
+    actual_mpesa REAL,
+    cash_variance REAL,
+    mpesa_variance REAL,
+    notes TEXT,
+    is_active INTEGER DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS mpesa_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    amount REAL NOT NULL,
+    phone TEXT NOT NULL,
+    receipt_code TEXT NOT NULL UNIQUE,
+    transaction_time DATETIME NOT NULL,
+    claimed INTEGER DEFAULT 0,
+    claimed_sale_id INTEGER,
+    claimed_at DATETIME,
+    raw_sms_text TEXT
+);
+CREATE TABLE IF NOT EXISTS refunds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sale_id INTEGER,
+    amount REAL NOT NULL,
+    reason TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS subcategories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id INTEGER,
+    name TEXT NOT NULL,
+    FOREIGN KEY(category_id) REFERENCES categories(id),
+    UNIQUE(category_id, name)
+);
+CREATE TABLE IF NOT EXISTS brands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id INTEGER,
+    subcategory_id INTEGER,
+    name TEXT NOT NULL,
+    FOREIGN KEY(category_id) REFERENCES categories(id),
+    UNIQUE(category_id, subcategory_id, name)
+);
+INSERT OR IGNORE INTO settings (key, value) VALUES
+('shop_name', 'SmartPOS Supermarket'),
+('shop_phone', '0700000000'),
+('shop_address', 'Nairobi, Kenya'),
+('shop_tin', 'A123456789Z'),
+('receipt_footer', 'Thank you for shopping with us'),
+('tax_rate', '0'),
+('tax_inclusive', 'true'),
+('low_stock_threshold', '5'),
+('max_tabs', '3'),
+('auto_backup_hour', '2'),
+('dark_mode', 'false'),
+('printer_type', 'thermal');
+INSERT OR IGNORE INTO users (username, password, role, pin, full_name) VALUES
+('owner', 'owner123', 'owner', NULL, 'Shop Owner'),
+('cashier1', 'cash123', 'cashier', '1234', 'John Cashier');
+INSERT OR IGNORE INTO categories (name) VALUES
+('Bakery'),
+('Dairy'),
+('Beverages'),
+('Meat'),
+('Vegetables'),
+('Fruits'),
+('Snacks'),
+('Household'),
+('Personal Care'),
+('Electronics');
+INSERT OR IGNORE INTO subcategories (category_id, name) VALUES
+((SELECT id FROM categories WHERE name='Bakery'), 'Breads'),
+((SELECT id FROM categories WHERE name='Bakery'), 'Cakes'),
+((SELECT id FROM categories WHERE name='Bakery'), 'Pastries'),
+((SELECT id FROM categories WHERE name='Bakery'), 'Cookies'),
+((SELECT id FROM categories WHERE name='Bakery'), 'Donuts'),
+((SELECT id FROM categories WHERE name='Dairy'), 'Milk'),
+((SELECT id FROM categories WHERE name='Dairy'), 'Yogurt'),
+((SELECT id FROM categories WHERE name='Dairy'), 'Cheese'),
+((SELECT id FROM categories WHERE name='Dairy'), 'Butter'),
+((SELECT id FROM categories WHERE name='Dairy'), 'Cream'),
+((SELECT id FROM categories WHERE name='Beverages'), 'Soda'),
+((SELECT id FROM categories WHERE name='Beverages'), 'Juice'),
+((SELECT id FROM categories WHERE name='Beverages'), 'Water'),
+((SELECT id FROM categories WHERE name='Beverages'), 'Energy Drinks'),
+((SELECT id FROM categories WHERE name='Beverages'), 'Coffee'),
+((SELECT id FROM categories WHERE name='Meat'), 'Beef'),
+((SELECT id FROM categories WHERE name='Meat'), 'Chicken'),
+((SELECT id FROM categories WHERE name='Meat'), 'Pork'),
+((SELECT id FROM categories WHERE name='Meat'), 'Fish'),
+((SELECT id FROM categories WHERE name='Meat'), 'Lamb'),
+((SELECT id FROM categories WHERE name='Vegetables'), 'Leafy Greens'),
+((SELECT id FROM categories WHERE name='Vegetables'), 'Root Vegetables'),
+((SELECT id FROM categories WHERE name='Vegetables'), 'Fruiting Vegetables'),
+((SELECT id FROM categories WHERE name='Vegetables'), 'Herbs'),
+((SELECT id FROM categories WHERE name='Vegetables'), 'Organic'),
+((SELECT id FROM categories WHERE name='Fruits'), 'Citrus'),
+((SELECT id FROM categories WHERE name='Fruits'), 'Tropical'),
+((SELECT id FROM categories WHERE name='Fruits'), 'Berries'),
+((SELECT id FROM categories WHERE name='Fruits'), 'Stone Fruits'),
+((SELECT id FROM categories WHERE name='Fruits'), 'Melons'),
+((SELECT id FROM categories WHERE name='Snacks'), 'Chips'),
+((SELECT id FROM categories WHERE name='Snacks'), 'Candy'),
+((SELECT id FROM categories WHERE name='Snacks'), 'Chocolate'),
+((SELECT id FROM categories WHERE name='Snacks'), 'Nuts'),
+((SELECT id FROM categories WHERE name='Snacks'), 'Popcorn'),
+((SELECT id FROM categories WHERE name='Household'), 'Cleaning'),
+((SELECT id FROM categories WHERE name='Household'), 'Laundry'),
+((SELECT id FROM categories WHERE name='Household'), 'Kitchen'),
+((SELECT id FROM categories WHERE name='Household'), 'Bathroom'),
+((SELECT id FROM categories WHERE name='Household'), 'Storage'),
+((SELECT id FROM categories WHERE name='Personal Care'), 'Shampoo'),
+((SELECT id FROM categories WHERE name='Personal Care'), 'Soap'),
+((SELECT id FROM categories WHERE name='Personal Care'), 'Deodorant'),
+((SELECT id FROM categories WHERE name='Personal Care'), 'Toothpaste'),
+((SELECT id FROM categories WHERE name='Personal Care'), 'Lotion'),
+((SELECT id FROM categories WHERE name='Electronics'), 'Phones'),
+((SELECT id FROM categories WHERE name='Electronics'), 'Laptops'),
+((SELECT id FROM categories WHERE name='Electronics'), 'Accessories'),
+((SELECT id FROM categories WHERE name='Electronics'), 'Audio'),
+((SELECT id FROM categories WHERE name='Electronics'), 'Cables');
+INSERT OR IGNORE INTO brands (category_id, subcategory_id, name) VALUES
+((SELECT id FROM categories WHERE name='Bakery'), (SELECT id FROM subcategories WHERE name='Breads' AND category_id=(SELECT id FROM categories WHERE name='Bakery')), 'Supaloaf'),
+((SELECT id FROM categories WHERE name='Bakery'), (SELECT id FROM subcategories WHERE name='Breads' AND category_id=(SELECT id FROM categories WHERE name='Bakery')), 'Browns Bread'),
+((SELECT id FROM categories WHERE name='Bakery'), (SELECT id FROM subcategories WHERE name='Breads' AND category_id=(SELECT id FROM categories WHERE name='Bakery')), 'White Star'),
+((SELECT id FROM categories WHERE name='Bakery'), (SELECT id FROM subcategories WHERE name='Cakes' AND category_id=(SELECT id FROM categories WHERE name='Bakery')), 'Birthday Cake'),
+((SELECT id FROM categories WHERE name='Bakery'), (SELECT id FROM subcategories WHERE name='Cakes' AND category_id=(SELECT id FROM categories WHERE name='Bakery')), 'Chocolate Delight'),
+((SELECT id FROM categories WHERE name='Bakery'), (SELECT id FROM subcategories WHERE name='Cakes' AND category_id=(SELECT id FROM categories WHERE name='Bakery')), 'Vanilla Dream'),
+((SELECT id FROM categories WHERE name='Dairy'), (SELECT id FROM subcategories WHERE name='Milk' AND category_id=(SELECT id FROM categories WHERE name='Dairy')), 'Brookside'),
+((SELECT id FROM categories WHERE name='Dairy'), (SELECT id FROM subcategories WHERE name='Milk' AND category_id=(SELECT id FROM categories WHERE name='Dairy')), 'Lato'),
+((SELECT id FROM categories WHERE name='Dairy'), (SELECT id FROM subcategories WHERE name='Milk' AND category_id=(SELECT id FROM categories WHERE name='Dairy')), 'Tuzo'),
+((SELECT id FROM categories WHERE name='Dairy'), (SELECT id FROM subcategories WHERE name='Yogurt' AND category_id=(SELECT id FROM categories WHERE name='Dairy')), 'Brookside'),
+((SELECT id FROM categories WHERE name='Dairy'), (SELECT id FROM subcategories WHERE name='Yogurt' AND category_id=(SELECT id FROM categories WHERE name='Dairy')), 'Strawberry Fields'),
+((SELECT id FROM categories WHERE name='Dairy'), (SELECT id FROM subcategories WHERE name='Yogurt' AND category_id=(SELECT id FROM categories WHERE name='Dairy')), 'Greek Style');
+INSERT OR IGNORE INTO products (name, category, subcategory, brand, size, price, stock, cost_price) VALUES
+('Supaloaf White', 'Bakery', 'Breads', 'Supaloaf', '400g', 70, 100, 52),
+('Supaloaf Brown', 'Bakery', 'Breads', 'Supaloaf', '400g', 75, 80, 56),
+('Supaloaf Wholemeal', 'Bakery', 'Breads', 'Supaloaf', '400g', 80, 60, 60),
+('Browns Classic White', 'Bakery', 'Breads', 'Browns Bread', '400g', 60, 90, 45),
+('Browns Classic Brown', 'Bakery', 'Breads', 'Browns Bread', '400g', 65, 85, 48),
+('Browns Seeded', 'Bakery', 'Breads', 'Browns Bread', '400g', 85, 50, 63),
+('Birthday Cake', 'Bakery', 'Cakes', 'Birthday Cake', '1kg', 550, 20, 420),
+('Chocolate Cake', 'Bakery', 'Cakes', 'Chocolate Delight', '500g', 450, 25, 340),
+('Vanilla Cake', 'Bakery', 'Cakes', 'Vanilla Dream', '500g', 420, 30, 310),
+('Brookside Fresh Milk', 'Dairy', 'Milk', 'Brookside', '500ml', 65, 100, 48),
+('Brookside Fresh Milk', 'Dairy', 'Milk', 'Brookside', '1L', 120, 80, 90),
+('Brookside Fresh Milk', 'Dairy', 'Milk', 'Brookside', '2L', 220, 50, 165),
+('Lato Fresh Milk', 'Dairy', 'Milk', 'Lato', '1L', 115, 70, 85),
+('Tuzo Fresh Milk', 'Dairy', 'Milk', 'Tuzo', '1L', 110, 60, 82),
+('Brookside Yogurt', 'Dairy', 'Yogurt', 'Brookside', '500g', 80, 80, 58),
+('Strawberry Yogurt', 'Dairy', 'Yogurt', 'Strawberry Fields', '500g', 90, 70, 65),
+('Greek Yogurt', 'Dairy', 'Yogurt', 'Greek Style', '500g', 120, 50, 88);
+INSERT OR IGNORE INTO products (name, category, subcategory, brand, size, price, stock, cost_price) VALUES
+('Coca-Cola', 'Beverages', 'Soda', 'Coca-Cola', '500ml', 70, 200, 50),
+('Fanta Orange', 'Beverages', 'Soda', 'Fanta', '500ml', 70, 200, 50),
+('Sprite', 'Beverages', 'Soda', 'Sprite', '500ml', 70, 200, 50),
+('Dasani Water', 'Beverages', 'Water', 'Dasani', '500ml', 50, 300, 32),
+('Red Bull', 'Beverages', 'Energy Drinks', 'Red Bull', '250ml', 200, 60, 150),
+('Fresh Beef', 'Meat', 'Beef', 'Fresh Beef', '1kg', 550, 50, 450),
+('Whole Chicken', 'Meat', 'Chicken', 'Whole Chicken', '1kg', 450, 50, 350),
+('Pork Meat', 'Meat', 'Pork', 'Pork Meat', '1kg', 500, 40, 400),
+('Tilapia Fish', 'Meat', 'Fish', 'Tilapia', '1kg', 400, 30, 300),
+('Red Onions', 'Vegetables', 'Root Vegetables', 'Fresh', '1kg', 120, 100, 80),
+('Fresh Tomatoes', 'Vegetables', 'Fruiting Vegetables', 'Fresh', '1kg', 100, 90, 68),
+('Irish Potatoes', 'Vegetables', 'Root Vegetables', 'Fresh', '1kg', 130, 80, 90),
+('Cabbage', 'Vegetables', 'Leafy Greens', 'Fresh', '1pc', 70, 70, 48),
+('Oranges', 'Fruits', 'Citrus', 'Fresh', '1kg', 150, 60, 110),
+('Bananas', 'Fruits', 'Tropical', 'Fresh', '1kg', 120, 100, 85),
+('Lays Chips', 'Snacks', 'Chips', 'Lays', '50g', 50, 200, 35),
+('KitKat Chocolate', 'Snacks', 'Chocolate', 'KitKat', '45g', 100, 150, 75),
+('Dettol Soap', 'Personal Care', 'Soap', 'Dettol', '1pc', 80, 100, 55),
+('iPhone Charger', 'Electronics', 'Accessories', 'Apple', '1m', 1500, 30, 1000),
+('USB C Cable', 'Electronics', 'Cables', 'Samsung', '2m', 800, 50, 500);;

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPOS - Login</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #1a1a2e;
+            color: white;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .login-box {
+            background: #16213e;
+            padding: 40px;
+            border-radius: 20px;
+            width: 350px;
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 30px;
+            color: #e94560;
+        }
+        input {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border: none;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            background: #e94560;
+            color: white;
+        }
+        button:hover {
+            background: #4caf50;
+        }
+        .error {
+            background: #dc2626;
+            padding: 10px;
+            border-radius: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            background: #0f3460;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+        .mode-btn.active {
+            background: #e94560;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div class="login-box">
+    <h1>SmartPOS</h1>
+    
+    <div class="mode-selector">
+        <div class="mode-btn active" id="btnCashier" onclick="setMode('cashier')">Cashier</div>
+        <div class="mode-btn" id="btnOwner" onclick="setMode('owner')">Owner</div>
+    </div>
+
+    <div id="cashierMode">
+        <input type="password" id="cashierPin" placeholder="Enter PIN (1234)" maxlength="6">
+        <button onclick="loginCashier()">Login as Cashier</button>
+    </div>
+
+    <div id="ownerMode" class="hidden">
+        <input type="text" id="ownerUsername" placeholder="Username">
+        <input type="password" id="ownerPassword" placeholder="Password">
+        <button onclick="loginOwner()">Login as Owner</button>
+    </div>
+
+    <div id="errorMsg" class="error hidden"></div>
+</div>
+
+<script>
+    function setMode(mode) {
+        if (mode === 'cashier') {
+            document.getElementById('cashierMode').classList.remove('hidden');
+            document.getElementById('ownerMode').classList.add('hidden');
+            document.getElementById('btnCashier').classList.add('active');
+            document.getElementById('btnOwner').classList.remove('active');
+        } else {
+            document.getElementById('cashierMode').classList.add('hidden');
+            document.getElementById('ownerMode').classList.remove('hidden');
+            document.getElementById('btnOwner').classList.add('active');
+            document.getElementById('btnCashier').classList.remove('active');
+        }
+    }
+
+    async function loginCashier() {
+        let pin = document.getElementById('cashierPin').value;
+        let errorDiv = document.getElementById('errorMsg');
+        
+        if (!pin) {
+            errorDiv.innerText = 'Enter PIN';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+
+        let response = await fetch('/api/auth/cashier', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin: pin })
+        });
+
+        let result = await response.json();
+
+        if (result.success) {
+            localStorage.setItem('user', JSON.stringify(result.user));
+            window.location.href = 'index.html';
+        } else {
+            errorDiv.innerText = result.error;
+            errorDiv.classList.remove('hidden');
+        }
+    }
+
+    async function loginOwner() {
+        let username = document.getElementById('ownerUsername').value;
+        let password = document.getElementById('ownerPassword').value;
+        let errorDiv = document.getElementById('errorMsg');
+
+        if (!username || !password) {
+            errorDiv.innerText = 'Enter username and password';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+
+        let response = await fetch('/api/auth/owner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: username, password: password })
+        });
+
+        let result = await response.json();
+
+        if (result.success) {
+            localStorage.setItem('user', JSON.stringify(result.user));
+            window.location.href = 'index.html';
+        } else {
+            errorDiv.innerText = result.error;
+            errorDiv.classList.remove('hidden');
+        }
+    }
+</script>
+</body>
+</html>

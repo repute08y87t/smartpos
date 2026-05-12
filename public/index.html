@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPOS - Multi Tab</title>
+    <style>
+        body { font-family: Arial; background: #1a1a2e; color: white; padding: 20px; margin: 0; }
+        .container { max-width: 1400px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px; background: #16213e; border-radius: 10px; flex-wrap: wrap; gap: 10px; }
+        .user-info { background: #0f3460; padding: 8px 15px; border-radius: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .live-time { background: #0f3460; padding: 5px 15px; border-radius: 10px; font-size: 14px; font-family: monospace; }
+        .logout-btn { background: #dc2626; padding: 8px 15px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .inventory-btn { background: #4caf50; padding: 8px 15px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .admin-btn { background: #e94560; padding: 8px 15px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .profit-btn { background: #f59e0b; padding: 8px 15px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .receipts-btn { background: #06b6d4; padding: 8px 15px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .shift-btn { background: #8b5cf6; padding: 8px 15px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .shiftrpts-btn { background: #a855f7; padding: 8px 15px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .settings-btn { background: #10b981; padding: 8px 15px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        
+        .tab-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { background: #0f3460; padding: 12px 25px; border-radius: 10px; cursor: pointer; text-align: center; flex: 1; }
+        .tab.active { background: #e94560; }
+        .tab:hover { background: #4caf50; }
+        .tab-total { font-size: 12px; margin-top: 5px; color: #4caf50; }
+        
+        .row { display: flex; gap: 20px; }
+        .col-products { flex: 2; background: #16213e; padding: 20px; border-radius: 10px; }
+        .col-cart { flex: 1; background: #16213e; padding: 20px; border-radius: 10px; }
+        .product { background: #0f3460; padding: 12px; margin: 8px; display: inline-block; width: 130px; text-align: center; cursor: pointer; border-radius: 10px; }
+        .product:hover { background: #e94560; }
+        .category-btn, .subcategory-btn { background: #e94560; padding: 12px; margin: 8px; display: inline-block; min-width: 100px; text-align: center; cursor: pointer; border-radius: 10px; }
+        .category-btn:hover, .subcategory-btn:hover { background: #4caf50; }
+        .nav-bar { margin-bottom: 15px; padding: 8px; background: #0f3460; border-radius: 10px; display: flex; gap: 10px; align-items: center; }
+        .nav-back { background: #e94560; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+        .nav-back:hover { background: #dc2626; }
+        .cart-item { border-bottom: 1px solid #333; padding: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .total { font-size: 22px; color: #4caf50; margin: 15px 0; }
+        button { background: #e94560; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .btn-checkout { background: #4caf50; width: 100%; font-size: 18px; }
+        .status { background: #4caf50; padding: 8px; border-radius: 5px; margin-bottom: 15px; text-align: center; }
+        .search-box { margin-bottom: 15px; }
+        .search-box input { width: 100%; padding: 10px; border-radius: 5px; border: none; }
+        .shift-status { background: #f59e0b; padding: 5px 10px; border-radius: 10px; font-size: 12px; }
+        .shift-active { background: #4caf50; }
+        .shift-inactive { background: #dc2626; }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            background: #16213e;
+            border-radius: 15px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>SmartPOS</h1>
+        <div class="user-info">
+            <span id="userName"></span> (<span id="userRole"></span>)
+            <div id="shiftStatus" class="shift-status shift-inactive">No active shift</div>
+            <div id="liveTime" class="live-time">--:--:--</div>
+            <button class="shift-btn" onclick="manageShift()">Shift</button>
+            <button class="shiftrpts-btn" id="shiftrptsBtn" style="display: none;" onclick="goToShiftReports()">Shift Reports</button>
+            <button class="settings-btn" id="settingsBtn" style="display: none;" onclick="goToSettings()">Settings</button>
+            <button class="admin-btn" id="adminBtn" style="display: none;" onclick="goToAdmin()">Admin</button>
+            <button class="profit-btn" id="profitBtn" style="display: none;" onclick="goToProfit()">Profit</button>
+            <button class="receipts-btn" id="receiptsBtn" style="display: none;" onclick="goToReceipts()">Receipts</button>
+            <button class="inventory-btn" id="inventoryBtn" style="display: none;" onclick="goToInventory()">Inventory</button>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    <div id="status" class="status">Ready</div>
+
+    <div class="tab-bar">
+        <div class="tab active" onclick="switchTab(0)">
+            Customer 1
+            <div class="tab-total" id="tabTotal0">KSh 0</div>
+        </div>
+        <div class="tab" onclick="switchTab(1)">
+            Customer 2
+            <div class="tab-total" id="tabTotal1">KSh 0</div>
+        </div>
+        <div class="tab" onclick="switchTab(2)">
+            Customer 3
+            <div class="tab-total" id="tabTotal2">KSh 0</div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-products">
+            <div class="nav-bar">
+                <div class="nav-back" onclick="goToCategories()">🏠 Categories</div>
+                <span id="navText"></span>
+            </div>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search products..." onkeyup="searchProducts()">
+            </div>
+            <div id="contentArea"></div>
+        </div>
+
+        <div class="col-cart">
+            <h3>Shopping Cart</h3>
+            <div id="cartList">Empty</div>
+            <div class="total">Total: KSh <span id="totalAmount">0</span></div>
+            <button onclick="clearCart()">Clear Cart</button>
+            <button class="btn-checkout" onclick="goToCheckout()">CHECKOUT</button>
+        </div>
+    </div>
+</div>
+
+<div id="shiftModal" class="modal">
+    <div class="modal-content" id="shiftModalContent"></div>
+</div>
+
+<script>
+let carts = [[], [], []];
+let activeTab = 0;
+let currentUser = null;
+let allProducts = [];
+let currentShift = null;
+let currentCategory = null;
+let currentSubcategory = null;
+
+function updateTime() {
+    let now = new Date();
+    document.getElementById('liveTime').innerHTML = now.toLocaleTimeString();
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+function checkLogin() {
+    let user = localStorage.getItem('user');
+    if (!user) {
+        window.location.href = 'login.html';
+        return;
+    }
+    currentUser = JSON.parse(user);
+    document.getElementById('userName').innerText = currentUser.full_name;
+    document.getElementById('userRole').innerText = currentUser.role;
+    
+    if (currentUser.role === 'owner') {
+        document.getElementById('inventoryBtn').style.display = 'block';
+        document.getElementById('adminBtn').style.display = 'block';
+        document.getElementById('profitBtn').style.display = 'block';
+        document.getElementById('receiptsBtn').style.display = 'block';
+        document.getElementById('shiftrptsBtn').style.display = 'block';
+        document.getElementById('settingsBtn').style.display = 'block';
+    }
+    
+    checkActiveShift();
+    loadProducts();
+}
+
+async function checkActiveShift() {
+    let response = await fetch('/api/shift/active');
+    let data = await response.json();
+    if (data.shift) {
+        currentShift = data.shift;
+        document.getElementById('shiftStatus').innerHTML = 'Shift: ' + new Date(data.shift.opened_at).toLocaleTimeString();
+        document.getElementById('shiftStatus').className = 'shift-status shift-active';
+    } else {
+        currentShift = null;
+        document.getElementById('shiftStatus').innerHTML = 'No active shift';
+        document.getElementById('shiftStatus').className = 'shift-status shift-inactive';
+    }
+}
+
+function manageShift() {
+    fetch('shift.html')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('shiftModalContent').innerHTML = html;
+            document.getElementById('shiftModal').style.display = 'flex';
+            
+            let scriptTags = document.getElementById('shiftModalContent').getElementsByTagName('script');
+            for (let i = 0; i < scriptTags.length; i++) {
+                let script = document.createElement('script');
+                script.text = scriptTags[i].innerHTML;
+                document.body.appendChild(script);
+            }
+        });
+}
+
+function closeShiftModal() {
+    document.getElementById('shiftModal').style.display = 'none';
+    document.getElementById('shiftModalContent').innerHTML = '';
+    checkActiveShift();
+}
+
+function goToShiftReports() { window.location.href = 'shift_logs.html'; }
+function goToSettings() { window.location.href = 'settings.html'; }
+function goToInventory() { window.location.href = 'reports.html'; }
+function goToAdmin() { window.location.href = 'admin.html'; }
+function goToProfit() { window.location.href = 'dashboard.html'; }
+function goToReceipts() { window.location.href = 'cashflow.html'; }
+
+function logout() {
+    localStorage.removeItem('user');
+    window.location.href = 'login.html';
+}
+
+function switchTab(tabId) {
+    activeTab = tabId;
+    document.querySelectorAll('.tab').forEach((tab, idx) => {
+        if (idx === tabId) tab.classList.add('active');
+        else tab.classList.remove('active');
+    });
+    renderCart();
+    showCategories();
+}
+
+function updateTabTotals() {
+    for (let i = 0; i < 3; i++) {
+        let total = 0;
+        for (let item of carts[i]) total += item.total;
+        document.getElementById('tabTotal' + i).innerText = 'KSh ' + total;
+    }
+}
+
+async function loadProducts() {
+    let res = await fetch('/api/products');
+    allProducts = await res.json();
+    showCategories();
+}
+
+function showCategories() {
+    currentCategory = null;
+    currentSubcategory = null;
+    let categories = [...new Set(allProducts.map(p => p.category).filter(c => c))];
+    let html = '<h3>Select Category</h3><div>';
+    for (let cat of categories) {
+        html += '<div class="category-btn" onclick="showSubcategories(\'' + cat + '\')">' + cat + '</div>';
+    }
+    html += '</div>';
+    document.getElementById('contentArea').innerHTML = html;
+    document.getElementById('navText').innerHTML = '';
+    document.getElementById('searchInput').value = '';
+}
+
+function showSubcategories(category) {
+    currentCategory = category;
+    currentSubcategory = null;
+    let subcategories = [...new Set(allProducts.filter(p => p.category === category).map(p => p.subcategory).filter(s => s))];
+    let html = '<h3>' + category + ' > Select Subcategory</h3><div>';
+    for (let sub of subcategories) {
+        html += '<div class="subcategory-btn" onclick="showProducts(\'' + category + '\', \'' + sub + '\')">' + sub + '</div>';
+    }
+    html += '</div>';
+    document.getElementById('contentArea').innerHTML = html;
+    document.getElementById('navText').innerHTML = ' > ' + category;
+    document.getElementById('searchInput').value = '';
+}
+
+function showProducts(category, subcategory) {
+    currentCategory = category;
+    currentSubcategory = subcategory;
+    let products = allProducts.filter(p => p.category === category && p.subcategory === subcategory);
+    let html = '<h3>Products</h3><div>';
+    for (let p of products) {
+        html += '<div class="product" onclick="addToCart(' + p.id + ', \'' + p.name.replace(/'/g, "\\'") + '\', ' + p.price + ')">' + p.name + '<br>KSh ' + p.price + '<br><small>Stock:' + p.stock + '</small></div>';
+    }
+    html += '</div>';
+    document.getElementById('contentArea').innerHTML = html;
+    document.getElementById('navText').innerHTML = ' > ' + category + ' > ' + subcategory;
+}
+
+function searchProducts() {
+    if (!currentCategory || !currentSubcategory) {
+        let searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        let filtered = allProducts.filter(p => p.name.toLowerCase().includes(searchTerm));
+        let html = '<h3>Products</h3><div>';
+        for (let p of filtered) {
+            html += '<div class="product" onclick="addToCart(' + p.id + ', \'' + p.name.replace(/'/g, "\\'") + '\', ' + p.price + ')">' + p.name + '<br>KSh ' + p.price + '<br><small>Stock:' + p.stock + '</small></div>';
+        }
+        html += '</div>';
+        document.getElementById('contentArea').innerHTML = html;
+    } else {
+        let searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        let filtered = allProducts.filter(p => p.category === currentCategory && p.subcategory === currentSubcategory && p.name.toLowerCase().includes(searchTerm));
+        let html = '<h3>Products</h3><div>';
+        for (let p of filtered) {
+            html += '<div class="product" onclick="addToCart(' + p.id + ', \'' + p.name.replace(/'/g, "\\'") + '\', ' + p.price + ')">' + p.name + '<br>KSh ' + p.price + '<br><small>Stock:' + p.stock + '</small></div>';
+        }
+        html += '</div>';
+        document.getElementById('contentArea').innerHTML = html;
+    }
+}
+
+function goToCategories() {
+    showCategories();
+}
+
+function addToCart(id, name, price) {
+    if (!currentShift) {
+        alert('Please open a shift first');
+        return;
+    }
+    let existing = carts[activeTab].find(item => item.id === id);
+    if (existing) {
+        existing.qty++;
+        existing.total = existing.qty * existing.price;
+    } else {
+        carts[activeTab].push({ id: id, name: name, price: price, qty: 1, total: price });
+    }
+    renderCart();
+    updateTabTotals();
+}
+
+function renderCart() {
+    let cart = carts[activeTab];
+    let cartDiv = document.getElementById('cartList');
+    let total = 0;
+    
+    if (cart.length === 0) {
+        cartDiv.innerHTML = '<p style="text-align: center; color: #888;">Cart is empty</p>';
+        document.getElementById('totalAmount').innerText = '0';
+        return;
+    }
+    
+    let html = '';
+    for (let i = 0; i < cart.length; i++) {
+        total += cart[i].total;
+        html += '<div class="cart-item">';
+        html += '<div><strong>' + cart[i].name + '</strong><br>KSh ' + cart[i].price + ' each</div>';
+        html += '<div><input type="number" value="' + cart[i].qty + '" min="0" onchange="updateQty(' + cart[i].id + ', this.value)" style="width:60px;"></div>';
+        html += '<div>KSh ' + cart[i].total + ' <button onclick="removeItem(' + cart[i].id + ')">✖</button></div>';
+        html += '</div>';
+    }
+    cartDiv.innerHTML = html;
+    document.getElementById('totalAmount').innerText = total;
+}
+
+function updateQty(id, qty) {
+    let cart = carts[activeTab];
+    let item = cart.find(i => i.id === id);
+    if (item) {
+        qty = parseInt(qty);
+        if (qty <= 0) {
+            carts[activeTab] = cart.filter(i => i.id !== id);
+        } else {
+            item.qty = qty;
+            item.total = item.qty * item.price;
+        }
+        renderCart();
+        updateTabTotals();
+    }
+}
+
+function removeItem(id) {
+    carts[activeTab] = carts[activeTab].filter(item => item.id !== id);
+    renderCart();
+    updateTabTotals();
+}
+
+function clearCart() {
+    carts[activeTab] = [];
+    renderCart();
+    updateTabTotals();
+}
+
+function goToCheckout() {
+    if (carts[activeTab].length === 0) {
+        alert('Cart is empty');
+        return;
+    }
+    if (!currentShift) {
+        alert('Please open a shift first');
+        return;
+    }
+    localStorage.setItem('checkoutCart', JSON.stringify(carts[activeTab]));
+    localStorage.setItem('checkoutTabId', activeTab);
+    window.open('checkout.html', '_blank');
+}
+
+function clearCheckoutTab(tabId) {
+    carts[tabId] = [];
+    updateTabTotals();
+    if (activeTab === tabId) {
+        renderCart();
+        showCategories();
+    }
+}
+
+window.clearCheckoutTab = clearCheckoutTab;
+
+checkLogin();
+</script>
+</body>
+</html>

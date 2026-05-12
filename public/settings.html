@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPOS - Settings</title>
+    <style>
+        body { font-family: Arial; background: #1a1a2e; color: white; padding: 20px; margin: 0; }
+        .container { max-width: 900px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 15px; background: #16213e; border-radius: 10px; }
+        .back-btn { background: #e94560; padding: 10px 20px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .save-btn { background: #4caf50; padding: 15px; border-radius: 10px; cursor: pointer; border: none; color: white; font-size: 18px; margin-top: 20px; width: 100%; }
+        .card { background: #16213e; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        h2 { color: #e94560; margin-bottom: 15px; font-size: 18px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 13px; color: #aaa; }
+        input, select, textarea { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #0f3460; color: white; font-size: 14px; box-sizing: border-box; }
+        textarea { resize: vertical; font-family: monospace; }
+        .row { display: flex; gap: 15px; }
+        .row .form-group { flex: 1; }
+        .success { background: #4caf50; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; display: none; }
+        .note { font-size: 11px; color: #888; margin-top: 5px; }
+        .backup-buttons { display: flex; gap: 10px; margin-top: 10px; }
+        .backup-btn { background: #f59e0b; padding: 10px; border-radius: 8px; cursor: pointer; text-align: center; flex: 1; }
+        .danger-btn { background: #dc2626; padding: 10px; border-radius: 8px; cursor: pointer; text-align: center; flex: 1; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Settings</h1>
+        <button class="back-btn" onclick="window.location.href='index.html'">Back to POS</button>
+    </div>
+
+    <div id="successMsg" class="success"></div>
+
+    <div class="card">
+        <h2>🏪 Shop Information</h2>
+        <div class="form-group">
+            <label>Shop Name</label>
+            <input type="text" id="shop_name" placeholder="My Shop">
+            <div class="note">Appears on receipt header</div>
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="text" id="shop_phone" placeholder="0712345678">
+            </div>
+            <div class="form-group">
+                <label>TIN / PIN</label>
+                <input type="text" id="shop_tin" placeholder="A123456789Z">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Address</label>
+            <input type="text" id="shop_address" placeholder="Nairobi, Kenya">
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🧾 Receipt Settings</h2>
+        <div class="form-group">
+            <label>Footer Message</label>
+            <textarea id="receipt_footer" rows="2" placeholder="Thank you for shopping with us"></textarea>
+            <div class="note">This message appears at the bottom of every receipt</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>💰 Tax Settings</h2>
+        <div class="row">
+            <div class="form-group">
+                <label>Tax Rate (%)</label>
+                <input type="number" id="tax_rate" step="0.01" placeholder="0">
+                <div class="note">e.g., 16 for 16% VAT</div>
+            </div>
+            <div class="form-group">
+                <label>Tax Inclusive?</label>
+                <select id="tax_inclusive">
+                    <option value="true">Yes - Prices include tax</option>
+                    <option value="false">No - Tax added at checkout</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>⚙️ System Settings</h2>
+        <div class="row">
+            <div class="form-group">
+                <label>Low Stock Threshold</label>
+                <input type="number" id="low_stock_threshold" placeholder="5">
+                <div class="note">Alert when stock falls below this number</div>
+            </div>
+            <div class="form-group">
+                <label>Max Tabs</label>
+                <input type="number" id="max_tabs" placeholder="3">
+                <div class="note">Maximum customers at once (3 default)</div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="form-group">
+                <label>Auto Backup Hour (24h)</label>
+                <input type="number" id="auto_backup_hour" placeholder="2">
+                <div class="note">2 = 2 AM daily backup</div>
+            </div>
+            <div class="form-group">
+                <label>Dark Mode</label>
+                <select id="dark_mode">
+                    <option value="false">Off</option>
+                    <option value="true">On</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🖨️ Printer Settings</h2>
+        <div class="form-group">
+            <label>Printer Type</label>
+            <select id="printer_type">
+                <option value="thermal">Thermal (USB) - Small receipt</option>
+                <option value="a4">A4 Paper - Full page</option>
+            </select>
+            <div class="note">Thermal printers give small receipts, A4 gives full page</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>💾 Backup & Restore</h2>
+        <div class="backup-buttons">
+            <div class="backup-btn" onclick="exportBackup()">📤 Export Database</div>
+            <div class="backup-btn" onclick="importBackup()">📥 Import Database</div>
+            <div class="danger-btn" onclick="clearData()">🗑️ Clear All Sales</div>
+        </div>
+        <div class="note" style="margin-top:10px;">Export saves your data to a file. Import restores from a backup file. Clear Sales removes all transaction history (keeps products).</div>
+    </div>
+
+    <button class="save-btn" onclick="saveSettings()">💾 Save All Settings</button>
+</div>
+
+<script>
+async function loadSettings() {
+    let response = await fetch('/api/settings');
+    let settings = await response.json();
+    
+    document.getElementById('shop_name').value = settings.shop_name || '';
+    document.getElementById('shop_phone').value = settings.shop_phone || '';
+    document.getElementById('shop_address').value = settings.shop_address || '';
+    document.getElementById('shop_tin').value = settings.shop_tin || '';
+    document.getElementById('receipt_footer').value = settings.receipt_footer || '';
+    document.getElementById('tax_rate').value = settings.tax_rate || 0;
+    document.getElementById('tax_inclusive').value = settings.tax_inclusive || 'true';
+    document.getElementById('low_stock_threshold').value = settings.low_stock_threshold || 5;
+    document.getElementById('max_tabs').value = settings.max_tabs || 3;
+    document.getElementById('auto_backup_hour').value = settings.auto_backup_hour || 2;
+    document.getElementById('dark_mode').value = settings.dark_mode || 'false';
+    document.getElementById('printer_type').value = settings.printer_type || 'thermal';
+}
+
+async function saveSettings() {
+    let settings = {
+        shop_name: document.getElementById('shop_name').value,
+        shop_phone: document.getElementById('shop_phone').value,
+        shop_address: document.getElementById('shop_address').value,
+        shop_tin: document.getElementById('shop_tin').value,
+        receipt_footer: document.getElementById('receipt_footer').value,
+        tax_rate: parseFloat(document.getElementById('tax_rate').value) || 0,
+        tax_inclusive: document.getElementById('tax_inclusive').value,
+        low_stock_threshold: parseInt(document.getElementById('low_stock_threshold').value) || 5,
+        max_tabs: parseInt(document.getElementById('max_tabs').value) || 3,
+        auto_backup_hour: parseInt(document.getElementById('auto_backup_hour').value) || 2,
+        dark_mode: document.getElementById('dark_mode').value,
+        printer_type: document.getElementById('printer_type').value
+    };
+    
+    let response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    });
+    
+    let result = await response.json();
+    
+    let msgDiv = document.getElementById('successMsg');
+    msgDiv.innerHTML = result.message || 'Settings saved successfully!';
+    msgDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        msgDiv.style.display = 'none';
+    }, 3000);
+}
+
+async function exportBackup() {
+    let response = await fetch('/api/backup/export');
+    let data = await response.json();
+    
+    let blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = 'smartpos_backup_' + new Date().toISOString().slice(0,19) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    showMessage('Backup exported successfully');
+}
+
+async function importBackup() {
+    let input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+        let file = e.target.files[0];
+        let text = await file.text();
+        let data = JSON.parse(text);
+        
+        let response = await fetch('/api/backup/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        let result = await response.json();
+        
+        if (result.success) {
+            showMessage('Backup imported successfully! Restart the app.');
+            setTimeout(() => window.location.href = 'index.html', 2000);
+        } else {
+            showMessage('Import failed: ' + result.error);
+        }
+    };
+    input.click();
+}
+
+async function clearData() {
+    if (confirm('⚠️ WARNING: This will delete ALL sales history!\n\nProducts, users, and settings will remain.\n\nThis cannot be undone. Continue?')) {
+        let response = await fetch('/api/clear/sales', { method: 'DELETE' });
+        let result = await response.json();
+        if (result.success) {
+            showMessage('All sales data cleared successfully!');
+        } else {
+            showMessage('Error: ' + result.error);
+        }
+    }
+}
+
+function showMessage(msg) {
+    let msgDiv = document.getElementById('successMsg');
+    msgDiv.innerHTML = msg;
+    msgDiv.style.display = 'block';
+    setTimeout(() => {
+        msgDiv.style.display = 'none';
+    }, 3000);
+}
+
+loadSettings();
+</script>
+</body>
+</html>

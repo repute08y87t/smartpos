@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPOS - Inventory</title>
+    <style>
+        body { font-family: Arial; background: #1a1a2e; color: white; padding: 20px; margin: 0; }
+        .container { max-width: 1200px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px; background: #16213e; border-radius: 10px; }
+        .back-btn { background: #e94560; padding: 10px 20px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .card { background: #16213e; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .report-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .report-btn { background: #0f3460; padding: 12px 20px; border-radius: 10px; cursor: pointer; text-align: center; flex: 1; min-width: 150px; }
+        .report-btn:hover { background: #e94560; }
+        .export-btn { background: #4caf50; }
+        .export-btn:hover { background: #45a049; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+        th { background: #0f3460; }
+        .low-stock { color: #f59e0b; }
+        .critical-stock { color: #dc2626; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Inventory Management</h1>
+        <button class="back-btn" onclick="window.location.href='index.html'">Back to POS</button>
+    </div>
+
+    <div class="report-buttons">
+        <div class="report-btn" onclick="loadBestSellers()">Best Sellers</div>
+        <div class="report-btn" onclick="loadLowStock()">Low Stock</div>
+        <div class="report-btn export-btn" onclick="exportToPDF()">Export to PDF</div>
+    </div>
+
+    <div class="card" id="reportContent">
+        <h3>Select a report above</h3>
+    </div>
+</div>
+
+<script>
+let currentReportData = null;
+let currentReportTitle = '';
+
+async function loadBestSellers() {
+    let response = await fetch('/api/reports/bestsellers');
+    let data = await response.json();
+    currentReportData = data;
+    currentReportTitle = 'Best Selling Products';
+    
+    let html = '<h3>Best Selling Products</h3>';
+    html += '<table><thead><tr><th>Product</th><th>Category</th><th>Quantity Sold</th><th>Revenue</th></tr></thead><tbody>';
+    for (let item of data) {
+        html += '<tr>';
+        html += '<td>' + (item.name || '-') + '</td>';
+        html += '<td>' + (item.category || '-') + '</td>';
+        html += '<td>' + (item.qty || 0) + '</td>';
+        html += '<td>KSh ' + (item.revenue || 0).toFixed(2) + '</td>';
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+    document.getElementById('reportContent').innerHTML = html;
+}
+
+async function loadLowStock() {
+    let response = await fetch('/api/reports/lowstock');
+    let data = await response.json();
+    currentReportData = data;
+    currentReportTitle = 'Low Stock Alerts';
+    
+    let html = '<h3>Low Stock Alerts (Below 10)</h3>';
+    html += '<table><thead><tr><th>Product</th><th>Category</th><th>Current Stock</th><th>Price</th><th>Status</th></tr></thead><tbody>';
+    for (let item of data) {
+        let stockClass = item.stock <= 5 ? 'critical-stock' : 'low-stock';
+        let status = item.stock <= 5 ? 'Critical' : 'Low';
+        html += '<tr>';
+        html += '<td>' + (item.name || '-') + '</td>';
+        html += '<td>' + (item.category || '-') + '</td>';
+        html += '<td class="' + stockClass + '">' + (item.stock || 0) + '</td>';
+        html += '<td>KSh ' + (item.price || 0) + '</td>';
+        html += '<td class="' + stockClass + '">' + status + '</td>';
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+    document.getElementById('reportContent').innerHTML = html;
+}
+
+function exportToPDF() {
+    if (!currentReportData) {
+        alert('Please load a report first');
+        return;
+    }
+    
+    let content = '';
+    if (currentReportTitle === 'Best Selling Products') {
+        content = '<h2>Best Selling Products</h2>';
+        content += '<table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse:collapse;">';
+        content += '<tr><th>Product</th><th>Category</th><th>Quantity Sold</th><th>Revenue</th></tr>';
+        for (let item of currentReportData) {
+            content += '<tr>';
+            content += '<td>' + (item.name || '-') + '</td>';
+            content += '<td>' + (item.category || '-') + '</td>';
+            content += '<td>' + (item.qty || 0) + '</td>';
+            content += '<td>KSh ' + (item.revenue || 0).toFixed(2) + '</td>';
+            content += '</tr>';
+        }
+        content += '</table>';
+    } else {
+        content = '<h2>Low Stock Alerts</h2>';
+        content += '<table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse:collapse;">';
+        content += '<tr><th>Product</th><th>Category</th><th>Current Stock</th><th>Price</th><th>Status</th></tr>';
+        for (let item of currentReportData) {
+            let status = item.stock <= 5 ? 'Critical' : 'Low';
+            content += '<tr>';
+            content += '<td>' + (item.name || '-') + '</td>';
+            content += '<td>' + (item.category || '-') + '</td>';
+            content += '<td>' + (item.stock || 0) + '</td>';
+            content += '<td>KSh ' + (item.price || 0) + '</td>';
+            content += '<td>' + status + '</td>';
+            content += '</tr>';
+        }
+        content += '</table>';
+    }
+    
+    let printWindow = window.open('', '_blank');
+    printWindow.document.write('<html><head><title>' + currentReportTitle + '</title>');
+    printWindow.document.write('<style>body { font-family: Arial; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }</style>');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write('<h1>SmartPOS - ' + currentReportTitle + '</h1>');
+    printWindow.document.write('<p>Generated: ' + new Date().toLocaleString() + '</p>');
+    printWindow.document.write(content);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+    printWindow.close();
+}
+
+loadBestSellers();
+</script>
+</body>
+</html>

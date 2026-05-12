@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPOS - Checkout</title>
+    <style>
+        body { font-family: Arial; background: #1a1a2e; color: white; margin: 0; padding: 10px; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        .container { width: 550px; background: #16213e; border-radius: 15px; padding: 20px; max-height: 98vh; display: flex; flex-direction: column; }
+        h2 { text-align: center; margin: 0 0 10px 0; }
+        .total-box { background: #0f3460; padding: 10px; border-radius: 10px; text-align: center; margin-bottom: 10px; }
+        .total-amount { font-size: 32px; color: #4caf50; font-weight: bold; }
+        .payment-buttons { display: flex; gap: 10px; margin-bottom: 10px; }
+        .payment-btn { background: #e94560; padding: 10px; border-radius: 10px; cursor: pointer; text-align: center; flex: 1; font-size: 14px; }
+        .payment-btn.selected { background: #4caf50; }
+        input { padding: 10px; font-size: 18px; border-radius: 10px; border: none; width: 100%; box-sizing: border-box; margin: 5px 0; text-align: center; }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+        .key { background: #0f3460; padding: 10px; text-align: center; font-size: 18px; cursor: pointer; border-radius: 8px; }
+        .key:hover { background: #e94560; }
+        .action-btn { background: #4caf50; padding: 10px; border-radius: 10px; cursor: pointer; text-align: center; font-size: 16px; margin-top: 10px; }
+        .action-btn:hover { background: #45a049; }
+        .back-btn { background: #dc2626; margin-top: 8px; }
+        .back-btn:hover { background: #b91c1c; }
+        .hidden { display: none; }
+        .step-title { font-size: 13px; font-weight: bold; margin: 5px 0; color: #f59e0b; }
+        .info-text { font-size: 11px; color: #888; text-align: center; margin: 5px 0; }
+        .remaining-box { background: #0f3460; padding: 8px; border-radius: 10px; margin: 10px 0; text-align: center; }
+        .remaining-amount { font-size: 20px; color: #f59e0b; font-weight: bold; }
+        .change-box { background: #0f3460; padding: 8px; border-radius: 10px; margin: 10px 0; text-align: center; }
+        .change-amount { font-size: 20px; color: #4caf50; font-weight: bold; }
+        .refund-box { background: #dc2626; padding: 8px; border-radius: 10px; margin: 10px 0; text-align: center; }
+        .refund-amount { font-size: 20px; color: white; font-weight: bold; }
+        .receipt-container { max-height: 300px; overflow-y: auto; margin-top: 10px; }
+        .receipt { background: white; color: black; padding: 12px; border-radius: 10px; font-family: monospace; font-size: 11px; }
+        .receipt h3, .receipt p { text-align: center; margin: 3px 0; }
+        .button-group { margin-top: 10px; display: flex; gap: 10px; }
+        .button-group .action-btn { flex: 1; margin-top: 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Checkout</h2>
+    <div class="total-box">
+        <div>Total Amount Due</div>
+        <div class="total-amount">KSh <span id="totalAmount">0</span></div>
+    </div>
+    <div class="payment-buttons">
+        <div class="payment-btn" onclick="selectMethod('cash')">Cash</div>
+        <div class="payment-btn" onclick="selectMethod('mpesa')">M-Pesa</div>
+        <div class="payment-btn" onclick="selectMethod('split')">Split</div>
+    </div>
+    <div id="cashArea" class="hidden">
+        <div class="step-title">Enter Cash Amount</div>
+        <input type="text" id="cashInput" placeholder="0" readonly>
+        <div class="keypad" id="cashKeypad"></div>
+        <div id="cashChangeBox" class="change-box hidden">
+            <div>Change to return:</div>
+            <div class="change-amount" id="cashChangeAmount">KSh 0</div>
+        </div>
+        <div class="action-btn" onclick="processCash()">Complete Payment</div>
+    </div>
+    <div id="mpesaArea" class="hidden">
+        <div class="step-title">Enter M-Pesa Amount</div>
+        <input type="text" id="mpesaInput" placeholder="0" readonly>
+        <div class="keypad" id="mpesaKeypad"></div>
+        <div id="mpesaRefundBox" class="refund-box hidden">
+            <div>⚠️ CASH REFUND DUE ⚠️</div>
+            <div class="refund-amount" id="mpesaRefundAmount">KSh 0</div>
+            <div style="font-size:10px;">Give this amount to customer in CASH</div>
+        </div>
+        <div class="info-text">Customer can overpay. Refund will be given in CASH.</div>
+        <div class="action-btn" onclick="processMpesa()">Complete M-Pesa Payment</div>
+    </div>
+    <div id="splitArea" class="hidden">
+        <div class="step-title">Split Payment</div>
+        <div class="info-text">Enter M-Pesa amount first</div>
+        <input type="text" id="splitMpesaInput" placeholder="M-Pesa Amount" readonly>
+        <div class="keypad" id="splitKeypad"></div>
+        <div class="remaining-box">
+            <div>Cash to collect:</div>
+            <div class="remaining-amount">KSh <span id="remainingAmount">0</span></div>
+        </div>
+        <div class="action-btn" onclick="processSplit()">Complete Split Payment</div>
+    </div>
+    <div class="action-btn back-btn" onclick="cancelCheckout()" id="cancelBtn">Cancel</div>
+    <div id="receiptArea" class="receipt-container hidden">
+        <div id="receiptContent" class="receipt"></div>
+        <div class="button-group">
+            <div class="action-btn" onclick="window.print()">Print Receipt</div>
+            <div class="action-btn back-btn" onclick="closeCheckout()">Done</div>
+        </div>
+    </div>
+</div>
+<script>
+let cart = [];
+let originalTotal = 0;
+let finalTotal = 0;
+let selectedMethod = null;
+let shopSettings = {};
+
+async function loadSettings() {
+    let response = await fetch('/api/settings');
+    shopSettings = await response.json();
+}
+
+function loadCart() {
+    let saved = localStorage.getItem('checkoutCart');
+    if (saved) {
+        cart = JSON.parse(saved);
+        originalTotal = 0;
+        for (let i = 0; i < cart.length; i++) {
+            originalTotal = originalTotal + cart[i].total;
+        }
+        finalTotal = originalTotal;
+        document.getElementById('totalAmount').innerText = finalTotal.toFixed(2);
+        document.getElementById('remainingAmount').innerText = finalTotal.toFixed(2);
+    }
+}
+
+function selectMethod(method) {
+    selectedMethod = method;
+    document.getElementById('cashArea').classList.add('hidden');
+    document.getElementById('mpesaArea').classList.add('hidden');
+    document.getElementById('splitArea').classList.add('hidden');
+    let btns = document.querySelectorAll('.payment-btn');
+    btns.forEach(btn => btn.classList.remove('selected'));
+    if (method === 'cash') {
+        document.getElementById('cashArea').classList.remove('hidden');
+        if(btns[0]) btns[0].classList.add('selected');
+        setupKeypad('cashInput', 'cashKeypad', 'cash');
+    } else if (method === 'mpesa') {
+        document.getElementById('mpesaArea').classList.remove('hidden');
+        if(btns[1]) btns[1].classList.add('selected');
+        setupKeypad('mpesaInput', 'mpesaKeypad', 'mpesa');
+    } else if (method === 'split') {
+        document.getElementById('splitArea').classList.remove('hidden');
+        if(btns[2]) btns[2].classList.add('selected');
+        setupKeypad('splitMpesaInput', 'splitKeypad', 'split');
+    }
+}
+
+function setupKeypad(inputId, keypadId, type) {
+    let keypad = document.getElementById(keypadId);
+    if(!keypad) return;
+    keypad.innerHTML = '';
+    let numbers = ['1','2','3','4','5','6','7','8','9','0','00','CLEAR'];
+    for (let n of numbers) {
+        let btn = document.createElement('div');
+        btn.className = 'key';
+        btn.innerText = n;
+        btn.onclick = function() {
+            let input = document.getElementById(inputId);
+            if (input) {
+                if (n === 'CLEAR') {
+                    input.value = '';
+                } else {
+                    input.value = (input.value || '') + n;
+                }
+            }
+            if (type === 'cash') {
+                let amount = parseFloat(input.value) || 0;
+                let changeBox = document.getElementById('cashChangeBox');
+                let changeAmount = document.getElementById('cashChangeAmount');
+                if (amount >= finalTotal) {
+                    let change = amount - finalTotal;
+                    changeAmount.innerText = 'KSh ' + change.toFixed(2);
+                    changeBox.classList.remove('hidden');
+                } else {
+                    changeBox.classList.add('hidden');
+                }
+            }
+            if (type === 'mpesa') {
+                let amount = parseFloat(input.value) || 0;
+                let refundBox = document.getElementById('mpesaRefundBox');
+                let refundAmount = document.getElementById('mpesaRefundAmount');
+                if (amount > finalTotal) {
+                    let refund = amount - finalTotal;
+                    refundAmount.innerText = 'KSh ' + refund.toFixed(2);
+                    refundBox.classList.remove('hidden');
+                } else {
+                    refundBox.classList.add('hidden');
+                }
+            }
+            if (type === 'split') {
+                let mpesaPaid = parseFloat(input.value) || 0;
+                let remaining = finalTotal - mpesaPaid;
+                if (remaining < 0) remaining = 0;
+                document.getElementById('remainingAmount').innerText = remaining.toFixed(2);
+            }
+        };
+        keypad.appendChild(btn);
+    }
+}
+
+async function processCash() {
+    let amount = parseFloat(document.getElementById('cashInput').value);
+    if (isNaN(amount) || amount < finalTotal) {
+        alert('Insufficient. Need KSh ' + (finalTotal - amount).toFixed(2));
+        return;
+    }
+    let change = amount - finalTotal;
+    if (!confirm('Total: KSh ' + finalTotal + '\nPaid: KSh ' + amount + '\nChange: KSh ' + change + '\n\nConfirm payment?')) return;
+    let paymentTimestamp = new Date().toISOString();
+    let response = await fetch('/api/sales/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: cart, subtotal: originalTotal, total: finalTotal, amount_paid: amount, method: 'cash', payment_timestamp: paymentTimestamp })
+    });
+    let result = await response.json();
+    if (result.success) {
+        await showReceipt(result.receipt_no, amount, 0, 'cash', null, null);
+    }
+}
+
+async function processMpesa() {
+    let amount = parseFloat(document.getElementById('mpesaInput').value);
+    if (isNaN(amount) || amount < finalTotal) {
+        alert('Insufficient. M-Pesa amount must be at least KSh ' + finalTotal);
+        return;
+    }
+    let refund = amount - finalTotal;
+    let confirmMsg = 'M-Pesa Payment Summary:\n\nTotal: KSh ' + finalTotal + '\nM-Pesa Received: KSh ' + amount;
+    if (refund > 0) confirmMsg += '\n\n⚠️ CASH REFUND DUE: KSh ' + refund + '\nGive this amount to customer in CASH.';
+    if (!confirm(confirmMsg + '\n\nConfirm payment?')) return;
+    let paymentTimestamp = new Date().toISOString();
+    let response = await fetch('/api/sales/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: cart, subtotal: originalTotal, total: finalTotal, amount_paid: amount, method: 'mpesa', payment_timestamp: paymentTimestamp, cash_refund: refund })
+    });
+    let result = await response.json();
+    if (result.success) {
+        await showReceipt(result.receipt_no, amount, refund, 'mpesa', null, null);
+    }
+}
+
+async function processSplit() {
+    let mpesaPaid = parseFloat(document.getElementById('splitMpesaInput').value) || 0;
+    let cashPaid = finalTotal - mpesaPaid;
+    if (mpesaPaid <= 0) { alert('Enter M-Pesa amount'); return; }
+    if (mpesaPaid > finalTotal) { alert('M-Pesa amount cannot exceed total'); return; }
+    if (!confirm('Split Payment Summary:\n\nM-Pesa: KSh ' + mpesaPaid + '\nCash: KSh ' + cashPaid + '\nTotal: KSh ' + finalTotal + '\n\nConfirm payment?')) return;
+    let paymentTimestamp = new Date().toISOString();
+    let response = await fetch('/api/sales/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: cart, subtotal: originalTotal, total: finalTotal, amount_paid: finalTotal, method: 'split', splitMpesa: mpesaPaid, splitCash: cashPaid, payment_timestamp: paymentTimestamp })
+    });
+    let result = await response.json();
+    if (result.success) {
+        await showReceipt(result.receipt_no, finalTotal, 0, 'split', mpesaPaid, cashPaid);
+    }
+}
+
+async function showReceipt(receiptNo, paid, refund, method, mpesaAmt, cashAmt) {
+    await loadSettings();
+    let shopName = shopSettings.shop_name || 'SMARTPOS';
+    let shopPhone = shopSettings.shop_phone ? 'Tel: ' + shopSettings.shop_phone : '';
+    let shopAddress = shopSettings.shop_address || '';
+    let footerMsg = shopSettings.receipt_footer || 'Thank you for shopping with us';
+    let methodText = method === 'cash' ? 'Cash' : (method === 'mpesa' ? 'M-Pesa' : 'Split');
+    let html = '<h3>' + shopName + '</h3>';
+    if(shopAddress) html += '<p>' + shopAddress + '</p>';
+    if(shopPhone) html += '<p>' + shopPhone + '</p>';
+    html += '<p>' + new Date().toLocaleString() + '</p>';
+    html += '<p>Receipt: ' + receiptNo + '</p><hr>';
+    for (let i = 0; i < cart.length; i++) {
+        html += '<p>' + cart[i].name + ' x' + cart[i].qty + ' = KSh ' + cart[i].total + '</p>';
+    }
+    html += '<hr>';
+    html += '<p><strong>Total: KSh ' + finalTotal.toFixed(2) + '</strong></p>';
+    html += '<p>Payment: ' + methodText + '</p>';
+    if (method === 'split') {
+        html += '<p>M-Pesa: KSh ' + mpesaAmt + '</p>';
+        html += '<p>Cash: KSh ' + cashAmt + '</p>';
+    } else {
+        html += '<p>Paid: KSh ' + paid + '</p>';
+        if (method === 'cash' && refund === 0) {
+            let change = paid - finalTotal;
+            if (change > 0) html += '<p>Change: KSh ' + change.toFixed(2) + '</p>';
+        }
+    }
+    if (refund > 0 && method === 'mpesa') {
+        html += '<hr>';
+        html += '<p style="color: #dc2626;"><strong>⚠️ CASH REFUND GIVEN: KSh ' + refund.toFixed(2) + '</strong></p>';
+        html += '<p style="font-size: 10px;">Customer overpaid via M-Pesa. Refund given in CASH.</p>';
+    }
+    html += '<hr>';
+    html += '<p>' + footerMsg + '</p>';
+    document.getElementById('receiptContent').innerHTML = html;
+    document.querySelector('.payment-buttons').style.display = 'none';
+    document.getElementById('cashArea').classList.add('hidden');
+    document.getElementById('mpesaArea').classList.add('hidden');
+    document.getElementById('splitArea').classList.add('hidden');
+    document.getElementById('cancelBtn').style.display = 'none';
+    document.getElementById('receiptArea').classList.remove('hidden');
+    localStorage.removeItem('checkoutCart');
+    cart = [];
+}
+
+function cancelCheckout() { window.close(); }
+function closeCheckout() {
+    let tabId = localStorage.getItem('checkoutTabId');
+    if(tabId !== null) {
+        if(window.opener) window.opener.clearCheckoutTab(parseInt(tabId));
+        else if(window.parent && window.parent.clearCheckoutTab) window.parent.clearCheckoutTab(parseInt(tabId));
+    }
+    localStorage.removeItem('checkoutTabId');
+    window.close();
+}
+loadSettings();
+loadCart();
+</script>
+</body>
+</html>

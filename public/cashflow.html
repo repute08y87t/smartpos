@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPOS - Receipts</title>
+    <style>
+        body { font-family: Arial; background: #1a1a2e; color: white; padding: 20px; margin: 0; }
+        .container { max-width: 1200px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px; background: #16213e; border-radius: 10px; }
+        .back-btn { background: #e94560; padding: 10px 20px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .card { background: #16213e; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+        th { background: #0f3460; }
+        .view-btn { background: #f59e0b; padding: 5px 10px; border-radius: 5px; cursor: pointer; border: none; color: white; font-size: 12px; }
+        .date-filter { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .date-filter input, .date-filter button { padding: 10px; border-radius: 5px; border: none; }
+        .date-filter button { background: #e94560; color: white; cursor: pointer; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #16213e; padding: 20px; border-radius: 15px; max-width: 500px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .close-modal { background: #dc2626; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top: 10px; text-align: center; width: 100%; border: none; color: white; }
+        .print-btn { background: #4caf50; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top: 5px; text-align: center; width: 100%; border: none; color: white; }
+        .receipt { background: white; color: black; padding: 15px; border-radius: 10px; font-family: monospace; font-size: 12px; }
+        .receipt h3, .receipt p { text-align: center; margin: 5px 0; }
+        .receipt hr { margin: 8px 0; }
+        
+        .method-cash { background: #4caf50; color: white; padding: 3px 8px; border-radius: 5px; font-size: 11px; display: inline-block; }
+        .method-mpesa { background: #2196f3; color: white; padding: 3px 8px; border-radius: 5px; font-size: 11px; display: inline-block; }
+        .method-mpesa-refund { background: #9c27b0; color: white; padding: 3px 8px; border-radius: 5px; font-size: 11px; display: inline-block; }
+        .method-split { background: #ff9800; color: white; padding: 3px 8px; border-radius: 5px; font-size: 11px; display: inline-block; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Receipts</h1>
+        <button class="back-btn" onclick="window.location.href='index.html'">Back to POS</button>
+    </div>
+
+    <div class="date-filter">
+        <input type="date" id="dateFilter" onchange="loadReceipts()">
+        <button onclick="loadReceipts()">Refresh</button>
+        <button onclick="loadToday()">Today</button>
+        <button onclick="loadAll()">All Receipts</button>
+    </div>
+
+    <div class="card">
+        <div style="overflow-x: auto;">
+            <table id="receiptsTable">
+                <thead>
+                    <tr><th>Receipt No</th><th>Date & Time</th><th>Method</th><th>Amount Paid</th><th>Action</th></tr>
+                </thead>
+                <tbody id="receiptsList"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="receiptModal" class="modal">
+    <div class="modal-content">
+        <div id="modalReceipt" class="receipt"></div>
+        <button class="print-btn" onclick="printReceipt()">🖨️ Print Receipt</button>
+        <button class="close-modal" onclick="closeModal()">Close</button>
+    </div>
+</div>
+
+<script>
+let currentReceiptHTML = '';
+let shopSettings = {};
+
+async function loadSettings() {
+    let response = await fetch('/api/settings');
+    shopSettings = await response.json();
+}
+
+async function loadReceipts() {
+    let date = document.getElementById('dateFilter').value;
+    let url = '/api/sales/payments';
+    if (date) {
+        url = '/api/sales/payments?date=' + date;
+    }
+    
+    let response = await fetch(url);
+    let receipts = await response.json();
+    
+    let html = '';
+    for (let r of receipts) {
+        let time = r.payment_timestamp ? new Date(r.payment_timestamp).toLocaleString() : '-';
+        let methodClass = '';
+        let methodDisplay = '';
+        
+        if (r.method === 'cash') {
+            methodClass = 'method-cash';
+            methodDisplay = 'Cash';
+        } else if (r.method === 'mpesa') {
+            methodClass = 'method-mpesa';
+            methodDisplay = 'M-Pesa';
+        } else if (r.method === 'split') {
+            methodClass = 'method-split';
+            methodDisplay = 'Split';
+        } else {
+            methodDisplay = r.method;
+        }
+        
+        html += '<tr>';
+        html += '<td>' + r.receipt_no + '</td>';
+        html += '<td>' + time + '</td>';
+        html += '<td class="' + methodClass + '">' + methodDisplay + '</td>';
+        html += '<td>KSh ' + r.total.toFixed(2) + '</td>';
+        html += '<td><button class="view-btn" onclick="viewReceipt(\'' + r.receipt_no + '\')">View</button></td>';
+        html += '</tr>';
+    }
+    document.getElementById('receiptsList').innerHTML = html || '<tr><td colspan="5">No receipts found</td></tr>';
+}
+
+async function viewReceipt(receiptNo) {
+    await loadSettings();
+    
+    let response = await fetch('/api/sale/' + receiptNo);
+    let sale = await response.json();
+    
+    let refundAmount = sale.refund_amount || 0;
+    let shopName = shopSettings.shop_name || 'SMARTPOS';
+    let shopPhone = shopSettings.shop_phone ? 'Tel: ' + shopSettings.shop_phone : '';
+    let shopAddress = shopSettings.shop_address || '';
+    let footerMsg = shopSettings.receipt_footer || 'Thank you for shopping with us';
+    
+    let html = '<h3>' + shopName + '</h3>';
+    if(shopAddress) html += '<p>' + shopAddress + '</p>';
+    if(shopPhone) html += '<p>' + shopPhone + '</p>';
+    html += '<p>' + new Date(sale.payment_timestamp).toLocaleString() + '</p>';
+    html += '<p>Receipt: ' + sale.receipt_no + '</p>';
+    html += '<hr>';
+    
+    for (let item of sale.items) {
+        html += '<p>' + item.name + ' x' + item.qty + ' = KSh ' + item.total_price + '</p>';
+    }
+    
+    html += '<hr>';
+    html += '<p><strong>Total: KSh ' + sale.total.toFixed(2) + '</strong></p>';
+    
+    if (sale.split_payments && sale.split_payments.length > 0) {
+        for (let pay of sale.split_payments) {
+            let methodName = pay.method === 'cash' ? 'Cash' : 'M-Pesa';
+            html += '<p>' + methodName + ': KSh ' + pay.total + '</p>';
+        }
+    } else {
+        let methodName = sale.method === 'cash' ? 'Cash' : (sale.method === 'mpesa' ? 'M-Pesa' : sale.method);
+        html += '<p>Payment: ' + methodName + '</p>';
+    }
+    
+    if (refundAmount > 0) {
+        html += '<hr>';
+        html += '<p style="color: #dc2626;"><strong>⚠️ CASH REFUND GIVEN: KSh ' + refundAmount.toFixed(2) + '</strong></p>';
+        html += '<p style="font-size: 10px;">Customer overpaid via M-Pesa. Refund given in CASH.</p>';
+    }
+    
+    html += '<hr>';
+    html += '<p>' + footerMsg + '</p>';
+    
+    currentReceiptHTML = html;
+    document.getElementById('modalReceipt').innerHTML = html;
+    document.getElementById('receiptModal').style.display = 'flex';
+}
+
+function printReceipt() {
+    let printWindow = window.open('', '_blank');
+    printWindow.document.write('<html><head><title>SmartPOS Receipt</title>');
+    printWindow.document.write('<style>body { font-family: monospace; padding: 20px; } .receipt { max-width: 300px; margin: auto; }</style>');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write('<div class="receipt">' + currentReceiptHTML + '</div>');
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+    printWindow.close();
+}
+
+function closeModal() {
+    document.getElementById('receiptModal').style.display = 'none';
+}
+
+function loadToday() {
+    let today = new Date().toISOString().slice(0, 10);
+    document.getElementById('dateFilter').value = today;
+    loadReceipts();
+}
+
+function loadAll() {
+    document.getElementById('dateFilter').value = '';
+    loadReceipts();
+}
+
+loadSettings();
+loadToday();
+</script>
+</body>
+</html>

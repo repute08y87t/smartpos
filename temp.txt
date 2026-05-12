@@ -1,0 +1,407 @@
+1:
+2:<!-- Edit Product Modal -->
+3:<div id="editProductModal" class="modal">
+4:    <div class="modal-content">
+5:        <h3>✏️ Edit Product</h3>
+6:        <input type="text" id="editProdName" placeholder="Product Name">
+7:        <input type="text" id="editProdSize" placeholder="Size">
+8:        <input type="number" id="editProdPrice" placeholder="Price">
+9:        <input type="number" id="editProdCost" placeholder="Cost">
+10:        <input type="number" id="editProdStock" placeholder="Stock">
+11:        <div class="modal-buttons">
+12:            <button class="btn btn-green" onclick="saveProductEdit()">Save Changes</button>
+13:            <button class="btn btn-red" onclick="closeProductEditModal()">Cancel</button>
+14:        </div>
+15:    </div>
+16:</div>
+17:
+18:<script>
+19:// Global variables
+20:let allProducts = [];
+21:let editType = null;
+22:let editOldName = null;
+23:let editCategoryVar = null;
+24:let editProductId = null;
+25:
+26:// Tab switching
+27:document.querySelectorAll('.tab-btn').forEach(btn => {
+28:    btn.addEventListener('click', function() {
+29:        let tab = this.getAttribute('data-tab');
+30:        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+31:        this.classList.add('active');
+32:        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+33:        document.getElementById('tab-' + tab).classList.add('active');
+34:        
+35:        // Load data when tab opens
+36:        if (tab === 'subcategories') loadSubcategories();
+37:        if (tab === 'brands') loadBrands();
+38:        if (tab === 'products') loadProducts();
+39:    });
+40:});
+41:
+42:// ============ CATEGORIES ============
+43:async function loadCategories() {
+44:    let res = await fetch('/api/categories');
+45:    let cats = await res.json();
+46:    let html = '';
+47:    for (let c of cats) {
+48:        html += `<div class="list-item">
+49:            <span>📁 ${c.name}</span>
+50:            <button class="btn-yellow" style="padding:4px 12px" onclick="editCategory('${c.name}')">Edit</button>
+51:            <button class="btn-red" style="padding:4px 12px" onclick="deleteCategory('${c.name}')">Delete</button>
+52:        </div>`;
+53:    }
+54:    document.getElementById('categoryList').innerHTML = html || '<div style="color:#888;">No categories yet</div>';
+55:    
+56:    // Update all category dropdowns
+57:    let selects = ['subCatSelect', 'filterSubCat', 'brandCatSelect', 'filterBrandCat', 'prodCatSelect'];
+58:    for (let s of selects) {
+59:        let sel = document.getElementById(s);
+60:        if (sel) {
+61:            let currentVal = sel.value;
+62:            sel.innerHTML = '<option value="">Select Category</option>';
+63:            for (let c of cats) {
+64:                sel.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+65:            }
+66:            if (currentVal && cats.some(c => c.name === currentVal)) sel.value = currentVal;
+67:        }
+68:    }
+69:}
+70:
+71:async function addCategory() {
+72:    let name = document.getElementById('catName').value.trim();
+73:    if (!name) { showMessage('Enter category name', 'error'); return; }
+74:    await fetch('/api/categories', {
+75:        method: 'POST',
+76:        headers: { 'Content-Type': 'application/json' },
+77:        body: JSON.stringify({ name: name })
+78:    });
+79:    document.getElementById('catName').value = '';
+80:    await loadCategories();
+81:    showMessage('Category added successfully');
+82:}
+83:
+84:function editCategory(name) {
+85:    editType = 'category';
+86:    editOldName = name;
+87:    document.getElementById('editModalTitle').innerText = 'Edit Category';
+88:    document.getElementById('editInput').value = name;
+89:    document.getElementById('editModal').style.display = 'flex';
+90:}
+91:
+92:async function deleteCategory(name) {
+93:    if (!confirm(`Delete category "${name}"? Products will be moved to "General".`)) return;
+94:    await fetch('/api/categories/delete', {
+95:        method: 'DELETE',
+96:        headers: { 'Content-Type': 'application/json' },
+97:        body: JSON.stringify({ category: name })
+98:    });
+99:    await loadCategories();
+100:    await loadProducts();
+101:    showMessage('Category deleted');
+102:}
+103:
+104:// ============ SUBCATEGORIES ============
+105:async function loadSubcategories() {
+106:    let cat = document.getElementById('filterSubCat').value;
+107:    if (!cat) {
+108:        document.getElementById('subcategoryList').innerHTML = '<div style="color:#888;">Select a category to view subcategories</div>';
+109:        return;
+110:    }
+111:    let res = await fetch('/api/subcategories?category=' + encodeURIComponent(cat));
+112:    let subs = await res.json();
+113:    let html = '';
+114:    for (let s of subs) {
+115:        let name = s.name || s;
+116:        html += `<div class="list-item">
+117:            <span>📂 ${name}</span>
+118:            <button class="btn-yellow" style="padding:4px 12px" onclick="editSubcategory('${cat}', '${name}')">Edit</button>
+119:            <button class="btn-red" style="padding:4px 12px" onclick="deleteSubcategory('${cat}', '${name}')">Delete</button>
+120:        </div>`;
+121:    }
+122:    document.getElementById('subcategoryList').innerHTML = html || '<div style="color:#888;">No subcategories yet</div>';
+123:}
+124:
+125:async function addSubcategory() {
+126:    let cat = document.getElementById('subCatSelect').value;
+127:    let name = document.getElementById('subName').value.trim();
+128:    if (!cat) { showMessage('Select a category first', 'error'); return; }
+129:    if (!name) { showMessage('Enter subcategory name', 'error'); return; }
+130:    await fetch('/api/subcategories', {
+131:        method: 'POST',
+132:        headers: { 'Content-Type': 'application/json' },
+133:        body: JSON.stringify({ name: name, category: cat })
+134:    });
+135:    document.getElementById('subName').value = '';
+136:    await loadSubcategories();
+137:    showMessage('Subcategory added');
+138:}
+139:
+140:function editSubcategory(cat, name) {
+141:    editType = 'subcategory';
+142:    editOldName = name;
+143:    editCategoryVar = cat;
+144:    document.getElementById('editModalTitle').innerText = 'Edit Subcategory';
+145:    document.getElementById('editInput').value = name;
+146:    document.getElementById('editModal').style.display = 'flex';
+147:}
+148:
+149:async function deleteSubcategory(cat, name) {
+150:    if (!confirm(`Delete subcategory "${name}"?`)) return;
+151:    await fetch('/api/subcategories/delete', {
+152:        method: 'DELETE',
+153:        headers: { 'Content-Type': 'application/json' },
+154:        body: JSON.stringify({ category: cat, subcategory: name })
+155:    });
+156:    await loadSubcategories();
+157:    await loadProducts();
+158:    showMessage('Subcategory deleted');
+159:}
+160:
+161:// ============ BRANDS ============
+162:async function loadBrands() {
+163:    let cat = document.getElementById('filterBrandCat').value;
+164:    if (!cat) {
+165:        document.getElementById('brandList').innerHTML = '<div style="color:#888;">Select a category to view brands</div>';
+166:        return;
+167:    }
+168:    let sub = document.getElementById('filterBrandSub').value;
+169:    let url = '/api/brands?category=' + encodeURIComponent(cat);
+170:    if (sub && sub !== 'All Subcategories') url += '&subcategory=' + encodeURIComponent(sub);
+171:    let res = await fetch(url);
+172:    let brands = await res.json();
+173:    let html = '';
+174:    for (let b of brands) {
+175:        html += `<div class="list-item"><span>🏷️ ${b}</span></div>`;
+176:    }
+177:    document.getElementById('brandList').innerHTML = html || '<div style="color:#888;">No brands yet</div>';
+178:}
+179:
+180:async function addBrand() {
+181:    let cat = document.getElementById('brandCatSelect').value;
+182:    let sub = document.getElementById('brandSubSelect').value;
+183:    let name = document.getElementById('brandName').value.trim();
+184:    if (!cat) { showMessage('Select a category first', 'error'); return; }
+185:    if (!name) { showMessage('Enter brand name', 'error'); return; }
+186:    await fetch('/api/brands', {
+187:        method: 'POST',
+188:        headers: { 'Content-Type': 'application/json' },
+189:        body: JSON.stringify({ name: name, category: cat, subcategory: sub || '' })
+190:    });
+191:    document.getElementById('brandName').value = '';
+192:    await loadBrands();
+193:    showMessage('Brand added');
+194:}
+195:
+196:// Load subcategory dropdown for brands
+197:async function loadBrandSubcategories() {
+198:    let cat = document.getElementById('brandCatSelect').value;
+199:    if (cat) {
+200:        let res = await fetch('/api/subcategories?category=' + encodeURIComponent(cat));
+201:        let subs = await res.json();
+202:        let html = '<option value="">Select Subcategory (Optional)</option>';
+203:        for (let s of subs) {
+204:            let n = s.name || s;
+205:            html += `<option value="${n}">${n}</option>`;
+206:        }
+207:        document.getElementById('brandSubSelect').innerHTML = html;
+208:    } else {
+209:        document.getElementById('brandSubSelect').innerHTML = '<option value="">Select Subcategory (Optional)</option>';
+210:    }
+211:}
+212:
+213:// Load subcategory dropdown for filter
+214:async function loadFilterSubcategories() {
+215:    let cat = document.getElementById('filterBrandCat').value;
+216:    if (cat) {
+217:        let res = await fetch('/api/subcategories?category=' + encodeURIComponent(cat));
+218:        let subs = await res.json();
+219:        let html = '<option value="All Subcategories">All Subcategories</option>';
+220:        for (let s of subs) {
+221:            let n = s.name || s;
+222:            html += `<option value="${n}">${n}</option>`;
+223:        }
+224:        document.getElementById('filterBrandSub').innerHTML = html;
+225:    } else {
+226:        document.getElementById('filterBrandSub').innerHTML = '<option value="All Subcategories">All Subcategories</option>';
+227:    }
+228:}
+229:
+230:// ============ PRODUCTS ============
+231:async function loadProducts() {
+232:    let res = await fetch('/api/products');
+233:    allProducts = await res.json();
+234:    let search = document.getElementById('searchProduct').value.toLowerCase();
+235:    let filtered = allProducts.filter(p => p.name.toLowerCase().includes(search));
+236:    let html = '';
+237:    for (let p of filtered) {
+238:        html += `<tr>
+239:            <td>${p.id}</td>
+240:            <td>${p.name}</td>
+241:            <td>${p.size || '-'}</td>
+242:            <td>KSh ${p.price}</td>
+243:            <td>${p.stock}</td>
+244:            <td>
+245:                <button class="btn-yellow" style="padding:4px 10px" onclick="editProduct(${p.id})">Edit</button>
+246:                <button class="btn-red" style="padding:4px 10px" onclick="deleteProduct(${p.id})">Delete</button>
+247:            </td>
+248:        </tr>`;
+249:    }
+250:    document.getElementById('productList').innerHTML = html || '<tr><td colspan="6">No products found</td></tr>';
+251:}
+252:
+253:async function loadProductSubcategories() {
+254:    let cat = document.getElementById('prodCatSelect').value;
+255:    if (!cat) {
+256:        document.getElementById('prodSubSelect').innerHTML = '<option value="">Select Subcategory</option>';
+257:        return;
+258:    }
+259:    let res = await fetch('/api/subcategories?category=' + encodeURIComponent(cat));
+260:    let subs = await res.json();
+261:    let html = '<option value="">Select Subcategory</option>';
+262:    for (let s of subs) {
+263:        let n = s.name || s;
+264:        html += `<option value="${n}">${n}</option>`;
+265:    }
+266:    document.getElementById('prodSubSelect').innerHTML = html;
+267:}
+268:
+269:async function loadProductBrands() {
+270:    let cat = document.getElementById('prodCatSelect').value;
+271:    let sub = document.getElementById('prodSubSelect').value;
+272:    if (!cat) return;
+273:    let url = '/api/brands?category=' + encodeURIComponent(cat);
+274:    if (sub) url += '&subcategory=' + encodeURIComponent(sub);
+275:    let res = await fetch(url);
+276:    let brands = await res.json();
+277:    let html = '<option value="">Select Brand</option>';
+278:    for (let b of brands) {
+279:        html += `<option value="${b}">${b}</option>`;
+280:    }
+281:    document.getElementById('prodBrandSelect').innerHTML = html;
+282:}
+283:
+284:async function addProduct() {
+285:    let cat = document.getElementById('prodCatSelect').value;
+286:    let sub = document.getElementById('prodSubSelect').value;
+287:    let brand = document.getElementById('prodBrandSelect').value;
+288:    let size = document.getElementById('prodSize').value.trim();
+289:    let price = parseFloat(document.getElementById('prodPrice').value);
+290:    let cost = parseFloat(document.getElementById('prodCost').value) || 0;
+291:    let stock = parseFloat(document.getElementById('prodStock').value) || 0;
+292:    
+293:    if (!cat || !sub || !brand) { showMessage('Select category, subcategory, and brand', 'error'); return; }
+294:    if (!size) { showMessage('Enter product size', 'error'); return; }
+295:    if (isNaN(price)) { showMessage('Enter selling price', 'error'); return; }
+296:    
+297:    let name = `${brand} ${size}`;
+298:    await fetch('/api/products', {
+299:        method: 'POST',
+300:        headers: { 'Content-Type': 'application/json' },
+301:        body: JSON.stringify({ name, size, price, cost_price: cost, stock, category: cat, subcategory: sub, brand })
+302:    });
+303:    
+304:    document.getElementById('prodSize').value = '';
+305:    document.getElementById('prodPrice').value = '';
+306:    document.getElementById('prodCost').value = '';
+307:    document.getElementById('prodStock').value = '';
+308:    await loadProducts();
+309:    showMessage('Product added successfully');
+310:}
+311:
+312:function editProduct(id) {
+313:    let product = allProducts.find(p => p.id === id);
+314:    if (!product) return;
+315:    editProductId = id;
+316:    document.getElementById('editProdName').value = product.name || '';
+317:    document.getElementById('editProdSize').value = product.size || '';
+318:    document.getElementById('editProdPrice').value = product.price || 0;
+319:    document.getElementById('editProdCost').value = product.cost_price || 0;
+320:    document.getElementById('editProdStock').value = product.stock || 0;
+321:    document.getElementById('editProductModal').style.display = 'flex';
+322:}
+323:
+324:async function saveProductEdit() {
+325:    let name = document.getElementById('editProdName').value;
+326:    let size = document.getElementById('editProdSize').value;
+327:    let price = parseFloat(document.getElementById('editProdPrice').value);
+328:    let cost = parseFloat(document.getElementById('editProdCost').value) || 0;
+329:    let stock = parseFloat(document.getElementById('editProdStock').value);
+330:    
+331:    await fetch('/api/products/' + editProductId, {
+332:        method: 'PUT',
+333:        headers: { 'Content-Type': 'application/json' },
+334:        body: JSON.stringify({ name, size, price, cost_price: cost, stock })
+335:    });
+336:    closeProductEditModal();
+337:    await loadProducts();
+338:    showMessage('Product updated');
+339:}
+340:
+341:async function deleteProduct(id) {
+342:    if (!confirm('Delete this product?')) return;
+343:    await fetch('/api/products/' + id, { method: 'DELETE' });
+344:    await loadProducts();
+345:    showMessage('Product deleted');
+346:}
+347:
+348:// ============ EDIT CONFIRMATION ============
+349:async function confirmEdit() {
+350:    let newName = document.getElementById('editInput').value.trim();
+351:    if (!newName) return;
+352:    
+353:    if (editType === 'category') {
+354:        await fetch('/api/categories/edit', {
+355:            method: 'PUT',
+356:            headers: { 'Content-Type': 'application/json' },
+357:            body: JSON.stringify({ old_name: editOldName, new_name: newName })
+358:        });
+359:        await loadCategories();
+360:    } else if (editType === 'subcategory') {
+361:        await fetch('/api/subcategories/edit', {
+362:            method: 'PUT',
+363:            headers: { 'Content-Type': 'application/json' },
+364:            body: JSON.stringify({ category: editCategoryVar, old_name: editOldName, new_name: newName })
+365:        });
+366:        await loadSubcategories();
+367:    }
+368:    closeEditModal();
+369:    await loadProducts();
+370:    showMessage('Updated successfully');
+371:}
+372:
+373:// ============ MODAL CONTROLS ============
+374:function closeEditModal() {
+375:    document.getElementById('editModal').style.display = 'none';
+376:    editType = null;
+377:}
+378:
+379:function closeProductEditModal() {
+380:    document.getElementById('editProductModal').style.display = 'none';
+381:    editProductId = null;
+382:}
+383:
+384:// ============ UTILITIES ============
+385:function showMessage(msg, type = 'success') {
+386:    let div = document.getElementById('successMsg');
+387:    div.innerText = msg;
+388:    div.style.background = type === 'error' ? '#ef4444' : '#22c55e';
+389:    div.style.display = 'block';
+390:    setTimeout(() => div.style.display = 'none', 3000);
+391:}
+392:
+393:// Event listeners
+394:document.getElementById('subCatSelect').onchange = () => {};
+395:document.getElementById('filterSubCat').onchange = () => loadSubcategories();
+396:document.getElementById('brandCatSelect').onchange = () => { loadBrandSubcategories(); loadBrands(); };
+397:document.getElementById('filterBrandCat').onchange = () => { loadFilterSubcategories(); loadBrands(); };
+398:document.getElementById('filterBrandSub').onchange = () => loadBrands();
+399:document.getElementById('prodCatSelect').onchange = () => { loadProductSubcategories(); };
+400:document.getElementById('prodSubSelect').onchange = () => { loadProductBrands(); };
+401:
+402:// Initialize
+403:loadCategories();
+404:loadProducts();
+405:</script>
+406:</body>
+407:</html>

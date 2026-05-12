@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPOS - Admin</title>
+    <style>
+        *{box-sizing:border-box}
+        body{font-family:Arial;background:#1a1a2e;color:#fff;margin:0;padding:20px}
+        .container{max-width:1400px;margin:auto}
+        h1{color:#e94560}
+        .admin-header{display:flex;justify-content:space-between;margin-bottom:20px}
+        .back-btn{background:#4caf50;padding:10px 20px;border-radius:10px;cursor:pointer;border:none;color:#fff}
+        .tab-bar{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+        .tab-btn{background:#0f3460;padding:12px 25px;border-radius:10px;cursor:pointer;border:none;color:#fff}
+        .tab-btn.active{background:#e94560}
+        .tab-content{display:none;background:#16213e;padding:20px;border-radius:15px}
+        .tab-content.active{display:block}
+        .form-group{margin-bottom:15px}
+        label{display:block;margin-bottom:5px;font-weight:bold;color:#ccc}
+        input,select{width:100%;padding:10px;border-radius:8px;border:none;background:#0f3460;color:#fff}
+        button{background:#e94560;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer}
+        .btn-green{background:#4caf50}
+        .btn-yellow{background:#f59e0b}
+        .btn-red{background:#dc2626}
+        .list-item{background:#0f3460;padding:12px;margin:8px 0;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+        table{width:100%;border-collapse:collapse}
+        th,td{padding:10px;text-align:left;border-bottom:1px solid #333}
+        th{background:#0f3460}
+        .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);display:none;justify-content:center;align-items:center;z-index:1000}
+        .modal-content{background:#16213e;padding:25px;border-radius:15px;width:90%;max-width:500px}
+        .modal-buttons{display:flex;gap:10px;margin-top:20px}
+        .modal-buttons button{flex:1}
+        .success-msg{position:fixed;bottom:20px;right:20px;background:#22c55e;padding:12px 20px;border-radius:10px;display:none;z-index:1001}
+        .inline-fields{display:flex;gap:10px;flex-wrap:wrap}
+        .inline-fields > div{flex:1}
+        .search-box{margin-bottom:15px}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="admin-header">
+        <h1>Admin Panel</h1>
+        <button class="back-btn" onclick="window.location.href='index.html'">← Back to POS</button>
+    </div>
+    <div class="tab-bar">
+        <button class="tab-btn active" data-tab="categories">Categories</button>
+        <button class="tab-btn" data-tab="subcategories">Subcategories</button>
+        <button class="tab-btn" data-tab="brands">Brands</button>
+        <button class="tab-btn" data-tab="products">Products</button>
+    </div>
+    <div id="tab-categories" class="tab-content active">
+        <h3>Add Category</h3>
+        <div class="form-group"><label>Name:</label><input type="text" id="catName" placeholder="e.g., Electronics"></div>
+        <button onclick="addCategory()">Add Category</button>
+        <h3>Existing Categories</h3>
+        <div id="categoryList"></div>
+    </div>
+    <div id="tab-subcategories" class="tab-content">
+        <h3>Add Subcategory</h3>
+        <div class="inline-fields">
+            <div><label>Category:</label><select id="subCatSelect"></select></div>
+            <div><label>Subcategory Name:</label><input type="text" id="subName" placeholder="e.g., Phones"></div>
+        </div>
+        <button onclick="addSubcategory()">Add Subcategory</button>
+        <h3>Filter by Category</h3>
+        <select id="filterSubCat" style="width:300px"></select>
+        <div id="subcategoryList" style="margin-top:20px"></div>
+    </div>
+    <div id="tab-brands" class="tab-content">
+        <h3>Add Brand</h3>
+        <div class="inline-fields">
+            <div><label>Category:</label><select id="brandCatSelect"></select></div>
+            <div><label>Subcategory (Required):</label><select id="brandSubSelect"></select></div>
+            <div><label>Brand Name:</label><input type="text" id="brandName" placeholder="e.g., Samsung"></div>
+        </div>
+        <button onclick="addBrand()">Add Brand</button>
+        <h3>Filter Brands</h3>
+        <div class="inline-fields">
+            <div><label>Category:</label><select id="filterBrandCat"></select></div>
+            <div><label>Subcategory:</label><select id="filterBrandSub"></select></div>
+        </div>
+        <div id="brandList" style="margin-top:20px"></div>
+    </div>
+    <div id="tab-products" class="tab-content">
+        <h3>Add Product</h3>
+        <div class="inline-fields">
+            <div><label>Category:</label><select id="prodCatSelect"></select></div>
+            <div><label>Subcategory:</label><select id="prodSubSelect"></select></div>
+            <div><label>Brand:</label><select id="prodBrandSelect"></select></div>
+            <div><label>Size:</label><input type="text" id="prodSize" placeholder="e.g., 400g" onkeyup="autoGenerateName()"></div>
+        </div>
+        <div class="inline-fields">
+            <div><label>Product Name (Auto):</label><input type="text" id="prodName" readonly style="background:#2a2a4a"></div>
+            <div><label>Price (KSh):</label><input type="number" id="prodPrice"></div>
+            <div><label>Cost (KSh):</label><input type="number" id="prodCost"></div>
+            <div><label>Stock:</label><input type="number" id="prodStock"></div>
+        </div>
+        <button onclick="addProduct()">Add Product</button>
+        <h3>Product List</h3>
+        <div class="search-box"><input type="text" id="searchProduct" placeholder="Search..." onkeyup="loadProducts()"></div>
+        <table><thead><tr><th>ID</th><th>Name</th><th>Size</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead><tbody id="productList"></tbody></table>
+    </div>
+</div>
+<div id="editModal" class="modal"><div class="modal-content"><h3 id="editModalTitle">Edit</h3><input type="text" id="editInput"><div class="modal-buttons"><button class="btn-green" onclick="confirmEdit()">Save</button><button class="btn-red" onclick="closeEditModal()">Cancel</button></div></div></div>
+<div id="editProductModal" class="modal"><div class="modal-content"><h3>Edit Product</h3><div class="form-group"><label>Name:</label><input type="text" id="editProdName"></div><div class="form-group"><label>Size:</label><input type="text" id="editProdSize"></div><div class="form-group"><label>Price (KSh):</label><input type="number" id="editProdPrice"></div><div class="form-group"><label>Cost (KSh):</label><input type="number" id="editProdCost"></div><div class="form-group"><label>Stock:</label><input type="number" id="editProdStock"></div><div class="modal-buttons"><button class="btn-green" onclick="saveProductEdit()">Save</button><button class="btn-red" onclick="closeProductEditModal()">Cancel</button></div></div></div>
+<div id="successMsg" class="success-msg"></div>
+<script>
+let allProducts=[],editType=null,editOldName=null,editCategoryVar=null,editProductId=null;
+document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',function(){let tab=this.dataset.tab;document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));document.getElementById('tab-'+tab).classList.add('active');if(tab==='subcategories')loadSubcategories();if(tab==='brands')loadBrands();if(tab==='products')loadProducts();})});
+function autoGenerateName(){let brand=document.getElementById('prodBrandSelect').value;let size=document.getElementById('prodSize').value;if(brand&&size)document.getElementById('prodName').value=brand+' '+size;}
+async function loadCategories(){let res=await fetch('/api/categories');let cats=await res.json();let html='';for(let c of cats)html+=`<div class="list-item"><span>📁 ${c.name}</span><button class="btn-yellow" onclick="editCategory('${c.name.replace(/'/g,"\\'")}')">Edit</button><button class="btn-red" onclick="deleteCategory('${c.name.replace(/'/g,"\\'")}')">Delete</button></div>`;document.getElementById('categoryList').innerHTML=html||'<div style="color:#888;">No categories</div>';
+let selects=['subCatSelect','filterSubCat','brandCatSelect','filterBrandCat','prodCatSelect'];for(let s of selects){let sel=document.getElementById(s);if(sel){let val=sel.value;sel.innerHTML='<option value="">Select Category</option>';for(let c of cats)sel.innerHTML+=`<option value="${c.name.replace(/'/g,"\\'")}">${c.name}</option>`;if(val&&cats.some(c=>c.name===val))sel.value=val;}}}
+async function addCategory(){let name=document.getElementById('catName').value.trim();if(!name){showMessage('Enter name','error');return;}await fetch('/api/categories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});document.getElementById('catName').value='';await loadCategories();showMessage('Category added');}
+function editCategory(name){editType='category';editOldName=name;document.getElementById('editModalTitle').innerText='Edit Category';document.getElementById('editInput').value=name;document.getElementById('editModal').style.display='flex';}
+async function deleteCategory(name){if(!confirm(`Delete "${name}"?`))return;await fetch('/api/categories/delete',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:name})});await loadCategories();await loadProducts();showMessage('Deleted');}
+async function loadSubcategories(){let cat=document.getElementById('filterSubCat').value;if(!cat){document.getElementById('subcategoryList').innerHTML='<div style="color:#888;">Select category</div>';return;}let res=await fetch('/api/subcategories?category='+encodeURIComponent(cat));let subs=await res.json();let html='';for(let s of subs){let n=s.name||s;html+=`<div class="list-item"><span>📂 ${n}</span><button class="btn-yellow" onclick="editSubcategory('${cat.replace(/'/g,"\\'")}','${n.replace(/'/g,"\\'")}')">Edit</button><button class="btn-red" onclick="deleteSubcategory('${cat.replace(/'/g,"\\'")}','${n.replace(/'/g,"\\'")}')">Delete</button></div>`;}document.getElementById('subcategoryList').innerHTML=html||'<div style="color:#888;">No subcategories</div>';}
+async function addSubcategory(){let cat=document.getElementById('subCatSelect').value;let name=document.getElementById('subName').value.trim();if(!cat){showMessage('Select category','error');return;}if(!name){showMessage('Enter name','error');return;}await fetch('/api/subcategories',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,category:cat})});document.getElementById('subName').value='';await loadSubcategories();showMessage('Subcategory added');}
+function editSubcategory(cat,name){editType='subcategory';editOldName=name;editCategoryVar=cat;document.getElementById('editModalTitle').innerText='Edit Subcategory';document.getElementById('editInput').value=name;document.getElementById('editModal').style.display='flex';}
+async function deleteSubcategory(cat,name){if(!confirm(`Delete "${name}"?`))return;await fetch('/api/subcategories/delete',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:cat,subcategory:name})});await loadSubcategories();await loadProducts();showMessage('Deleted');}
+async function loadBrands(){let cat=document.getElementById('filterBrandCat').value;if(!cat){document.getElementById('brandList').innerHTML='<div style="color:#888;">Select category</div>';return;}let sub=document.getElementById('filterBrandSub').value;let url='/api/brands?category='+encodeURIComponent(cat);if(sub&&sub!=='All Subcategories')url+='&subcategory='+encodeURIComponent(sub);let res=await fetch(url);let brands=await res.json();let html='';for(let b of brands)html+=`<div class="list-item"><span>🏷️ ${b}</span></div>`;document.getElementById('brandList').innerHTML=html||'<div style="color:#888;">No brands</div>';}
+async function addBrand(){let cat=document.getElementById('brandCatSelect').value;let sub=document.getElementById('brandSubSelect').value;let name=document.getElementById('brandName').value.trim();if(!cat){showMessage('Select category','error');return;}if(!sub){showMessage('Select subcategory','error');return;}if(!name){showMessage('Enter brand name','error');return;}await fetch('/api/brands',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,category:cat,subcategory:sub})});document.getElementById('brandName').value='';await loadBrands();showMessage('Brand added');}
+async function loadBrandSubcategories(){let cat=document.getElementById('brandCatSelect').value;if(cat){let res=await fetch('/api/subcategories?category='+encodeURIComponent(cat));let subs=await res.json();let html='<option value="">Select Subcategory</option>';for(let s of subs){let n=s.name||s;html+=`<option value="${n.replace(/'/g,"\\'")}">${n}</option>`;}document.getElementById('brandSubSelect').innerHTML=html;}else{document.getElementById('brandSubSelect').innerHTML='<option value="">Select Subcategory</option>';}}
+async function loadFilterSubcategories(){let cat=document.getElementById('filterBrandCat').value;if(cat){let res=await fetch('/api/subcategories?category='+encodeURIComponent(cat));let subs=await res.json();let html='<option value="All Subcategories">All Subcategories</option>';for(let s of subs){let n=s.name||s;html+=`<option value="${n.replace(/'/g,"\\'")}">${n}</option>`;}document.getElementById('filterBrandSub').innerHTML=html;}else{document.getElementById('filterBrandSub').innerHTML='<option value="All Subcategories">All Subcategories</option>';}}
+async function loadProducts(){let res=await fetch('/api/products');allProducts=await res.json();let search=document.getElementById('searchProduct').value.toLowerCase();let filtered=allProducts.filter(p=>p.name.toLowerCase().includes(search));let html='';for(let p of filtered)html+=`<tr><td>${p.id}</td><td>${p.name}</td><td>${p.size||'-'}</td><td>KSh ${p.price}</td><td>${p.stock}</td><td><button class="btn-yellow" onclick="editProduct(${p.id})">Edit</button><button class="btn-red" onclick="deleteProduct(${p.id})">Delete</button></td></tr>`;document.getElementById('productList').innerHTML=html||'<tr><td colspan="6">No products</td></tr>';}
+async function loadProductSubcategories(){let cat=document.getElementById('prodCatSelect').value;if(!cat){document.getElementById('prodSubSelect').innerHTML='<option value="">Select Subcategory</option>';return;}let res=await fetch('/api/subcategories?category='+encodeURIComponent(cat));let subs=await res.json();let html='<option value="">Select Subcategory</option>';for(let s of subs){let n=s.name||s;html+=`<option value="${n.replace(/'/g,"\\'")}">${n}</option>`;}document.getElementById('prodSubSelect').innerHTML=html;}
+async function loadProductBrands(){let cat=document.getElementById('prodCatSelect').value;let sub=document.getElementById('prodSubSelect').value;if(!cat)return;let url='/api/brands?category='+encodeURIComponent(cat);if(sub)url+='&subcategory='+encodeURIComponent(sub);let res=await fetch(url);let brands=await res.json();let html='<option value="">Select Brand</option>';for(let b of brands)html+=`<option value="${b.replace(/'/g,"\\'")}">${b}</option>`;document.getElementById('prodBrandSelect').innerHTML=html;autoGenerateName();}
+async function addProduct(){let cat=document.getElementById('prodCatSelect').value;let sub=document.getElementById('prodSubSelect').value;let brand=document.getElementById('prodBrandSelect').value;let size=document.getElementById('prodSize').value.trim();let price=parseFloat(document.getElementById('prodPrice').value);let cost=parseFloat(document.getElementById('prodCost').value)||0;let stock=parseFloat(document.getElementById('prodStock').value)||0;if(!cat||!sub||!brand){showMessage('Select category, subcategory, brand','error');return;}if(!size){showMessage('Enter size','error');return;}if(isNaN(price)){showMessage('Enter price','error');return;}let name=brand+' '+size;await fetch('/api/products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,size,price,cost_price:cost,stock,category:cat,subcategory:sub,brand})});document.getElementById('prodSize').value='';document.getElementById('prodName').value='';document.getElementById('prodPrice').value='';document.getElementById('prodCost').value='';document.getElementById('prodStock').value='';await loadProducts();showMessage('Product added');}
+function editProduct(id){let p=allProducts.find(p=>p.id===id);if(!p)return;editProductId=id;document.getElementById('editProdName').value=p.name||'';document.getElementById('editProdSize').value=p.size||'';document.getElementById('editProdPrice').value=p.price||0;document.getElementById('editProdCost').value=p.cost_price||0;document.getElementById('editProdStock').value=p.stock||0;document.getElementById('editProductModal').style.display='flex';}
+async function saveProductEdit(){let name=document.getElementById('editProdName').value;let size=document.getElementById('editProdSize').value;let price=parseFloat(document.getElementById('editProdPrice').value);let cost=parseFloat(document.getElementById('editProdCost').value)||0;let stock=parseFloat(document.getElementById('editProdStock').value);await fetch('/api/products/'+editProductId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,size,price,cost_price:cost,stock})});closeProductEditModal();await loadProducts();showMessage('Product updated');}
+async function deleteProduct(id){if(!confirm('Delete this product?'))return;await fetch('/api/products/'+id,{method:'DELETE'});await loadProducts();showMessage('Product deleted');}
+async function confirmEdit(){let newName=document.getElementById('editInput').value.trim();if(!newName)return;if(editType==='category'){await fetch('/api/categories/edit',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_name:editOldName,new_name:newName})});await loadCategories();}else if(editType==='subcategory'){await fetch('/api/subcategories/edit',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:editCategoryVar,old_name:editOldName,new_name:newName})});await loadSubcategories();}closeEditModal();await loadProducts();showMessage('Updated');}
+function closeEditModal(){document.getElementById('editModal').style.display='none';editType=null;}
+function closeProductEditModal(){document.getElementById('editProductModal').style.display='none';editProductId=null;}
+function showMessage(msg,type='success'){let div=document.getElementById('successMsg');div.innerText=msg;div.style.background=type==='error'?'#ef4444':'#22c55e';div.style.display='block';setTimeout(()=>div.style.display='none',3000);}
+document.getElementById('subCatSelect').onchange=()=>{};document.getElementById('filterSubCat').onchange=()=>loadSubcategories();document.getElementById('brandCatSelect').onchange=()=>{loadBrandSubcategories();loadBrands();};document.getElementById('filterBrandCat').onchange=()=>{loadFilterSubcategories();loadBrands();};document.getElementById('filterBrandSub').onchange=()=>loadBrands();document.getElementById('prodCatSelect').onchange=()=>{loadProductSubcategories();};document.getElementById('prodSubSelect').onchange=()=>{loadProductBrands();};document.getElementById('prodBrandSelect').onchange=()=>autoGenerateName();
+loadCategories();loadProducts();
+</script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPOS - Profit Reports</title>
+    <style>
+        body { font-family: Arial; background: #1a1a2e; color: white; padding: 20px; margin: 0; }
+        .container { max-width: 1200px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px; background: #16213e; border-radius: 10px; }
+        .back-btn { background: #e94560; padding: 10px 20px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .card { background: #16213e; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .period-buttons { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .period-btn { background: #0f3460; padding: 10px 20px; border-radius: 8px; cursor: pointer; border: none; color: white; }
+        .period-btn:hover { background: #e94560; }
+        .export-btn { background: #4caf50; }
+        .export-btn:hover { background: #45a049; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+        th { background: #0f3460; }
+        .total { font-size: 20px; color: #4caf50; margin: 10px 0; }
+        .profit { color: #4caf50; }
+        .loss { color: #dc2626; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Profit & Sales Reports</h1>
+        <button class="back-btn" onclick="window.location.href='index.html'">Back to POS</button>
+    </div>
+
+    <div class="period-buttons">
+        <button class="period-btn" onclick="loadDailyProfit()">Daily</button>
+        <button class="period-btn" onclick="loadWeeklyProfit()">Weekly (Last 7 Days)</button>
+        <button class="period-btn" onclick="loadMonthlyProfit()">Monthly (This Month)</button>
+        <button class="period-btn export-btn" onclick="exportToPDF()">📄 Save as PDF</button>
+    </div>
+
+    <div class="card" id="reportContent">
+        <h3>Select a report above</h3>
+    </div>
+</div>
+
+<script>
+let currentReportData = null;
+let currentReportTitle = '';
+
+async function loadDailyProfit() {
+    let response = await fetch('/api/reports/profit');
+    let data = await response.json();
+    currentReportData = data;
+    currentReportTitle = 'Daily Profit Report';
+    displayReport(data, currentReportTitle);
+}
+
+async function loadWeeklyProfit() {
+    let response = await fetch('/api/reports/profit/weekly');
+    let data = await response.json();
+    currentReportData = data;
+    currentReportTitle = 'Weekly Profit Report (Last 7 Days)';
+    displayReport(data, currentReportTitle);
+}
+
+async function loadMonthlyProfit() {
+    let response = await fetch('/api/reports/profit/monthly');
+    let data = await response.json();
+    currentReportData = data;
+    currentReportTitle = 'Monthly Profit Report';
+    displayReport(data, currentReportTitle);
+}
+
+function displayReport(data, title) {
+    let profitClass = data.total_profit >= 0 ? 'profit' : 'loss';
+    
+    let html = '<h3>' + title + '</h3>';
+    html += '<div class="total">Total Revenue: KSh ' + data.total_revenue.toFixed(2) + '</div>';
+    html += '<div class="total">Total Cost: KSh ' + data.total_cost.toFixed(2) + '</div>';
+    html += '<div class="total ' + profitClass + '">Total Profit: KSh ' + data.total_profit.toFixed(2) + '</div>';
+    html += '<div class="total">Profit Margin: ' + (data.total_revenue > 0 ? (data.total_profit / data.total_revenue * 100).toFixed(1) : 0) + '%</div>';
+    
+    if (data.sales && data.sales.length > 0) {
+        html += '<h4>Sales Breakdown</h4>';
+        html += '<table><thead><tr><th>Receipt No</th><th>Date</th><th>Revenue</th><th>Cost</th><th>Profit</th></tr></thead><tbody>';
+        for (let sale of data.sales) {
+            let saleProfitClass = sale.profit >= 0 ? 'profit' : 'loss';
+            html += '<tr><td>' + sale.receipt_no + '</td><td>' + new Date(sale.payment_timestamp).toLocaleString() + '</td>';
+            html += '<td>KSh ' + sale.total_revenue.toFixed(2) + '</td>';
+            html += '<td>KSh ' + sale.total_cost.toFixed(2) + '</td>';
+            html += '<td class="' + saleProfitClass + '">KSh ' + sale.profit.toFixed(2) + '</td></tr>';
+        }
+        html += '</tbody></table>';
+    }
+    
+    document.getElementById('reportContent').innerHTML = html;
+}
+
+function exportToPDF() {
+    if (!currentReportData) {
+        alert('Please load a report first');
+        return;
+    }
+    
+    let profitClass = currentReportData.total_profit >= 0 ? 'profit' : 'loss';
+    let content = '<h1>SmartPOS - ' + currentReportTitle + '</h1>';
+    content += '<p>Generated: ' + new Date().toLocaleString() + '</p>';
+    content += '<hr>';
+    content += '<h3>Summary</h3>';
+    content += '<p>Total Revenue: KSh ' + currentReportData.total_revenue.toFixed(2) + '</p>';
+    content += '<p>Total Cost: KSh ' + currentReportData.total_cost.toFixed(2) + '</p>';
+    content += '<p>Total Profit: KSh ' + currentReportData.total_profit.toFixed(2) + '</p>';
+    content += '<p>Profit Margin: ' + (currentReportData.total_revenue > 0 ? (currentReportData.total_profit / currentReportData.total_revenue * 100).toFixed(1) : 0) + '%</p>';
+    
+    if (currentReportData.sales && currentReportData.sales.length > 0) {
+        content += '<h3>Sales Breakdown</h3>';
+        content += '<table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse:collapse;">';
+        content += '<tr><th>Receipt No</th><th>Date</th><th>Revenue</th><th>Cost</th><th>Profit</th></tr>';
+        for (let sale of currentReportData.sales) {
+            content += '<tr>';
+            content += '<td>' + sale.receipt_no + '</td>';
+            content += '<td>' + new Date(sale.payment_timestamp).toLocaleString() + '</td>';
+            content += '<td>KSh ' + sale.total_revenue.toFixed(2) + '</td>';
+            content += '<td>KSh ' + sale.total_cost.toFixed(2) + '</td>';
+            content += '<td>KSh ' + sale.profit.toFixed(2) + '</td>';
+            content += '</tr>';
+        }
+        content += '</table>';
+    }
+    
+    let printWindow = window.open('', '_blank');
+    printWindow.document.write('<html><head><title>' + currentReportTitle + '</title>');
+    printWindow.document.write('<style>body { font-family: Arial; padding: 20px; } h1 { color: #333; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; }</style>');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write(content);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+    printWindow.close();
+}
+
+loadDailyProfit();
+</script>
+</body>
+</html>

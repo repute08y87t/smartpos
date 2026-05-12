@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPOS - Shift Reports</title>
+    <style>
+        body { font-family: Arial; background: #1a1a2e; color: white; padding: 20px; margin: 0; }
+        .container { max-width: 1200px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px; background: #16213e; border-radius: 10px; }
+        .back-btn { background: #e94560; padding: 10px 20px; border-radius: 10px; cursor: pointer; border: none; color: white; }
+        .card { background: #16213e; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+        th { background: #0f3460; }
+        .view-btn { background: #f59e0b; padding: 6px 15px; border-radius: 5px; cursor: pointer; border: none; color: white; font-size: 12px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #16213e; padding: 25px; border-radius: 15px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .close-modal { background: #dc2626; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top: 15px; text-align: center; width: 100%; border: none; color: white; font-size: 16px; }
+        .date-filter { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .date-filter input, .date-filter button { padding: 10px; border-radius: 5px; border: none; }
+        .date-filter button { background: #e94560; color: white; cursor: pointer; }
+        .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; }
+        .detail-label { font-weight: bold; color: #aaa; }
+        .detail-value { font-family: monospace; font-size: 16px; }
+        .positive { color: #4caf50; }
+        .negative { color: #dc2626; }
+        .section-title { font-size: 18px; font-weight: bold; margin: 15px 0 10px 0; color: #f59e0b; border-left: 3px solid #f59e0b; padding-left: 10px; }
+        .summary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #0f3460; padding: 12px; border-radius: 10px; text-align: center; }
+        .stat-value { font-size: 20px; font-weight: bold; }
+        .period-buttons { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .period-btn { background: #0f3460; padding: 10px 20px; border-radius: 8px; cursor: pointer; border: none; color: white; }
+        .period-btn.active { background: #e94560; }
+        .export-btn { background: #4caf50; }
+        .export-btn:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>Shift Reports</h1>
+        <button class="back-btn" onclick="window.location.href='index.html'">Back to POS</button>
+    </div>
+
+    <div class="period-buttons">
+        <button class="period-btn" onclick="loadDaily()">Daily</button>
+        <button class="period-btn" onclick="loadWeekly()">Weekly</button>
+        <button class="period-btn" onclick="loadMonthly()">Monthly</button>
+        <button class="period-btn export-btn" onclick="exportToPDF()">📄 Export to PDF</button>
+    </div>
+
+    <div class="date-filter">
+        <input type="date" id="dateFilter" onchange="loadCustom()">
+        <button onclick="loadCustom()">View Custom Date</button>
+        <button onclick="loadToday()">Today</button>
+    </div>
+
+    <div id="summaryStats" class="summary-stats"></div>
+
+    <div class="card">
+        <h3 id="periodTitle">Shift History</h3>
+        <div style="overflow-x: auto;">
+            <table id="shiftsTable">
+                <thead>
+                    <tr><th>Date</th><th>Opened</th><th>Closed</th><th>Status</th><th>Action</th></tr>
+                </thead>
+                <tbody id="shiftsList"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="detailsModal" class="modal">
+    <div class="modal-content">
+        <h2 id="modalTitle">Shift Details</h2>
+        <div id="modalDetails"></div>
+        <button class="close-modal" onclick="closeModal()">Close</button>
+    </div>
+</div>
+
+<script>
+let currentPeriod = 'daily';
+let currentDate = new Date().toISOString().slice(0, 10);
+let currentShifts = [];
+
+async function loadDaily() {
+    currentPeriod = 'daily';
+    document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('dateFilter').value = currentDate;
+    await loadShiftsByDate(currentDate);
+}
+
+async function loadWeekly() {
+    currentPeriod = 'weekly';
+    document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    await loadWeeklyReport();
+}
+
+async function loadMonthly() {
+    currentPeriod = 'monthly';
+    document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    await loadMonthlyReport();
+}
+
+async function loadCustom() {
+    currentPeriod = 'custom';
+    let date = document.getElementById('dateFilter').value;
+    if (date) {
+        currentDate = date;
+        await loadShiftsByDate(date);
+    }
+}
+
+async function loadToday() {
+    let today = new Date().toISOString().slice(0, 10);
+    document.getElementById('dateFilter').value = today;
+    currentDate = today;
+    await loadShiftsByDate(today);
+}
+
+async function loadShiftsByDate(date) {
+    let response = await fetch('/api/shifts/by-date?date=' + date);
+    let shifts = await response.json();
+    currentShifts = shifts;
+    displayShifts(shifts, date);
+    calculateSummary(shifts);
+}
+
+async function loadWeeklyReport() {
+    let response = await fetch('/api/shifts/all');
+    let allShifts = await response.json();
+    
+    let today = new Date();
+    let weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - 7);
+    
+    let weeklyShifts = allShifts.filter(s => {
+        let shiftDate = new Date(s.opened_at);
+        return shiftDate >= weekStart;
+    });
+    currentShifts = weeklyShifts;
+    displayShifts(weeklyShifts, 'Last 7 Days');
+    calculateWeeklySummary(weeklyShifts);
+}
+
+async function loadMonthlyReport() {
+    let response = await fetch('/api/shifts/all');
+    let allShifts = await response.json();
+    
+    let today = new Date();
+    let monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    let monthlyShifts = allShifts.filter(s => {
+        let shiftDate = new Date(s.opened_at);
+        return shiftDate >= monthStart;
+    });
+    currentShifts = monthlyShifts;
+    displayShifts(monthlyShifts, 'This Month');
+    calculateMonthlySummary(monthlyShifts);
+}
+
+function displayShifts(shifts, title) {
+    document.getElementById('periodTitle').innerHTML = 'Shift History - ' + title;
+    
+    let html = '';
+    for (let s of shifts) {
+        let dateStr = s.opened_at ? new Date(s.opened_at).toLocaleDateString() : '-';
+        let openedTime = s.opened_at ? new Date(s.opened_at).toLocaleTimeString() : '-';
+        let closedTime = s.closed_at ? new Date(s.closed_at).toLocaleTimeString() : 'Active';
+        let status = s.is_active ? '🟢 Active' : '🔴 Closed';
+        
+        html += '<tr>';
+        html += '<td>' + dateStr + '</td>';
+        html += '<td>' + openedTime + '</td>';
+        html += '<td>' + closedTime + '</td>';
+        html += '<td>' + status + '</td>';
+        html += '<td><button class="view-btn" onclick="viewShiftDetails(' + s.id + ')">View Details</button></td>';
+        html += '</tr>';
+    }
+    document.getElementById('shiftsList').innerHTML = html || '<tr><td colspan="5">No shifts found</td></tr>';
+}
+
+async function calculateSummary(shifts) {
+    let totalCashSales = 0;
+    let totalMpesaSales = 0;
+    let totalCashVariance = 0;
+    let shiftCount = shifts.length;
+    
+    for (let s of shifts) {
+        totalCashSales += s.cash_sales || 0;
+        totalMpesaSales += s.mpesa_sales || 0;
+        totalCashVariance += s.cash_variance || 0;
+    }
+    
+    let totalSales = totalCashSales + totalMpesaSales;
+    
+    let html = `
+        <div class="stat-card"><div class="stat-value">${shiftCount}</div><div>Shifts</div></div>
+        <div class="stat-card"><div class="stat-value">KSh ${totalSales.toFixed(2)}</div><div>Total Sales</div></div>
+        <div class="stat-card"><div class="stat-value">KSh ${totalCashSales.toFixed(2)}</div><div>Cash Sales</div></div>
+        <div class="stat-card"><div class="stat-value">KSh ${totalMpesaSales.toFixed(2)}</div><div>M-Pesa Sales</div></div>
+        <div class="stat-card"><div class="stat-value ${totalCashVariance >= 0 ? 'positive' : 'negative'}">${totalCashVariance >= 0 ? '+' : ''}KSh ${totalCashVariance.toFixed(2)}</div><div>Cash Variance</div></div>
+    `;
+    document.getElementById('summaryStats').innerHTML = html;
+}
+
+function calculateWeeklySummary(shifts) {
+    let totalCashSales = 0;
+    let totalMpesaSales = 0;
+    let totalCashVariance = 0;
+    let days = new Set();
+    
+    for (let s of shifts) {
+        totalCashSales += s.cash_sales || 0;
+        totalMpesaSales += s.mpesa_sales || 0;
+        totalCashVariance += s.cash_variance || 0;
+        if (s.opened_at) days.add(new Date(s.opened_at).toLocaleDateString());
+    }
+    
+    let totalSales = totalCashSales + totalMpesaSales;
+    let avgDaily = totalSales / (days.size || 1);
+    
+    let html = `
+        <div class="stat-card"><div class="stat-value">${days.size}</div><div>Days Active</div></div>
+        <div class="stat-card"><div class="stat-value">KSh ${totalSales.toFixed(2)}</div><div>Total Sales</div></div>
+        <div class="stat-card"><div class="stat-value">KSh ${avgDaily.toFixed(2)}</div><div>Avg Daily Sales</div></div>
+        <div class="stat-card"><div class="stat-value">KSh ${totalCashSales.toFixed(2)}</div><div>Cash Sales</div></div>
+        <div class="stat-card"><div class="stat-value">KSh ${totalMpesaSales.toFixed(2)}</div><div>M-Pesa Sales</div></div>
+        <div class="stat-card"><div class="stat-value ${totalCashVariance >= 0 ? 'positive' : 'negative'}">${totalCashVariance >= 0 ? '+' : ''}KSh ${totalCashVariance.toFixed(2)}</div><div>Cash Variance</div></div>
+    `;
+    document.getElementById('summaryStats').innerHTML = html;
+}
+
+function calculateMonthlySummary(shifts) {
+    let totalCashSales = 0;
+    let totalMpesaSales = 0;
+    let totalCashVariance = 0;
+    
+    for (let s of shifts) {
+        totalCashSales += s.cash_sales || 0;
+        totalMpesaSales += s.mpesa_sales || 0;
+        totalCashVariance += s.cash_variance || 0;
+    }
+    
+    let totalSales = totalCashSales + totalMpesaSales;
+    
+    let html = `
+        <div class="stat-card"><div class="stat-value">${shifts.length}</div><div>Total Shifts</div></div>
+        <div class="stat-card"><div class="stat-value">KSh ${totalSales.toFixed(2)}</div><div>Total Sales</div></div>
+        <div class="stat-card"><div class="stat-value">KSh ${totalCashSales.toFixed(2)}</div><div>Cash Sales</div></div>
+        <div class="stat-card"><div class="stat-value">KSh ${totalMpesaSales.toFixed(2)}</div><div>M-Pesa Sales</div></div>
+        <div class="stat-card"><div class="stat-value ${totalCashVariance >= 0 ? 'positive' : 'negative'}">${totalCashVariance >= 0 ? '+' : ''}KSh ${totalCashVariance.toFixed(2)}</div><div>Cash Variance</div></div>
+    `;
+    document.getElementById('summaryStats').innerHTML = html;
+}
+
+async function viewShiftDetails(shiftId) {
+    let response = await fetch('/api/shift/details?id=' + shiftId);
+    let shift = await response.json();
+    
+    let refundsRes = await fetch('/api/refunds/by-shift?shift_id=' + shiftId);
+    let refunds = await refundsRes.json();
+    let totalRefunds = 0;
+    for (let r of refunds) totalRefunds += r.amount;
+    
+    let cashVarianceClass = (shift.cash_variance || 0) >= 0 ? 'positive' : 'negative';
+    let mpesaVarianceClass = (shift.mpesa_variance || 0) >= 0 ? 'positive' : 'negative';
+    
+    let html = '';
+    
+    html += '<div class="section-title">📅 Shift Information</div>';
+    html += '<div class="detail-row"><span class="detail-label">Opened:</span><span class="detail-value">' + new Date(shift.opened_at).toLocaleString() + '</span></div>';
+    html += '<div class="detail-row"><span class="detail-label">Closed:</span><span class="detail-value">' + (shift.closed_at ? new Date(shift.closed_at).toLocaleString() : 'Still Active') + '</span></div>';
+    
+    html += '<div class="section-title">💰 Cash Summary</div>';
+    html += '<div class="detail-row"><span class="detail-label">Opening Cash:</span><span class="detail-value">KSh ' + (shift.opening_cash || 0).toFixed(2) + '</span></div>';
+    html += '<div class="detail-row"><span class="detail-label">Cash Sales:</span><span class="detail-value">KSh ' + (shift.cash_sales || 0).toFixed(2) + '</span></div>';
+    html += '<div class="detail-row"><span class="detail-label">Cash Refunds:</span><span class="detail-value negative">- KSh ' + totalRefunds.toFixed(2) + '</span></div>';
+    if (shift.total_cash_out > 0) html += '<div class="detail-row"><span class="detail-label">Other Cash Out:</span><span class="detail-value negative">- KSh ' + (shift.total_cash_out || 0).toFixed(2) + '</span></div>';
+    html += '<div class="detail-row"><span class="detail-label">Expected Cash:</span><span class="detail-value">KSh ' + (shift.expected_cash || 0).toFixed(2) + '</span></div>';
+    html += '<div class="detail-row"><span class="detail-label">Actual Cash Counted:</span><span class="detail-value">KSh ' + (shift.actual_cash || 0).toFixed(2) + '</span></div>';
+    html += '<div class="detail-row"><span class="detail-label">Cash Variance:</span><span class="detail-value ' + cashVarianceClass + '">' + ((shift.cash_variance || 0) >= 0 ? '+' : '') + (shift.cash_variance || 0).toFixed(2) + '</span></div>';
+    
+    html += '<div class="section-title">📱 M-Pesa Summary</div>';
+    html += '<div class="detail-row"><span class="detail-label">Opening M-Pesa:</span><span class="detail-value">KSh ' + (shift.opening_mpesa || 0).toFixed(2) + '</span></div>';
+    html += '<div class="detail-row"><span class="detail-label">M-Pesa Sales:</span><span class="detail-value">KSh ' + (shift.mpesa_sales || 0).toFixed(2) + '</span></div>';
+    html += '<div class="detail-row"><span class="detail-label">Expected M-Pesa:</span><span class="detail-value">KSh ' + (shift.expected_mpesa || 0).toFixed(2) + '</span></div>';
+    html += '<div class="detail-row"><span class="detail-label">Actual M-Pesa:</span><span class="detail-value">KSh ' + (shift.actual_mpesa || 0).toFixed(2) + '</span></div>';
+    html += '<div class="detail-row"><span class="detail-label">M-Pesa Variance:</span><span class="detail-value ' + mpesaVarianceClass + '">' + ((shift.mpesa_variance || 0) >= 0 ? '+' : '') + (shift.mpesa_variance || 0).toFixed(2) + '</span></div>';
+    
+    html += '<div class="section-title">📝 Summary</div>';
+    html += '<div class="detail-row"><span class="detail-label">Total Sales:</span><span class="detail-value">KSh ' + ((shift.cash_sales || 0) + (shift.mpesa_sales || 0)).toFixed(2) + '</span></div>';
+    
+    if (refunds.length > 0) {
+        html += '<div class="section-title">💰 Refund Details</div>';
+        for (let r of refunds) {
+            html += '<div class="detail-row"><span class="detail-label">' + new Date(r.timestamp).toLocaleTimeString() + ':</span><span class="detail-value negative">- KSh ' + r.amount.toFixed(2) + ' (' + r.reason + ')</span></div>';
+        }
+    }
+    
+    if (shift.notes) {
+        html += '<div class="section-title">📋 Notes</div>';
+        html += '<div style="background:#0f3460; padding:12px; border-radius:8px; margin-top:5px; white-space:pre-wrap; font-size:14px;">' + shift.notes + '</div>';
+    }
+    
+    document.getElementById('modalDetails').innerHTML = html;
+    document.getElementById('modalTitle').innerHTML = 'Shift #' + shift.id;
+    document.getElementById('detailsModal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('detailsModal').style.display = 'none';
+}
+
+function exportToPDF() {
+    let summaryContent = document.getElementById('summaryStats').innerHTML;
+    let tableContent = document.getElementById('shiftsTable').outerHTML;
+    let title = document.getElementById('periodTitle').innerHTML;
+    
+    let printWindow = window.open('', '_blank');
+    printWindow.document.write('<html><head><title>Shift Reports</title>');
+    printWindow.document.write('<style>body { font-family: Arial; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 8px; text-align: left; } th { background-color: #f2f2f2; } .positive { color: green; } .negative { color: red; } .stat-card { display: inline-block; width: 180px; margin: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; text-align: center; } .summary-stats { text-align: center; }</style>');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write('<h1>SmartPOS - Shift Reports</h1>');
+    printWindow.document.write('<p>Generated: ' + new Date().toLocaleString() + '</p>');
+    printWindow.document.write('<p>' + title + '</p>');
+    printWindow.document.write('<div class="summary-stats">' + summaryContent + '</div>');
+    printWindow.document.write(tableContent);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+    printWindow.close();
+}
+
+loadToday();
+</script>
+</body>
+</html>

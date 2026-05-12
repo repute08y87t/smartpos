@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SmartPOS - Shift Management</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial; background: #16213e; margin: 0; padding: 20px; }
+        .container { max-width: 550px; margin: auto; }
+        h2 { text-align: center; margin-bottom: 20px; color: #e94560; }
+        .info-card { background: #0f3460; padding: 12px; border-radius: 10px; margin-bottom: 12px; text-align: center; }
+        .info-label { font-size: 11px; color: #888; }
+        .info-value { font-size: 22px; font-weight: bold; color: #4caf50; }
+        .calculation-box { background: #0f3460; padding: 15px; border-radius: 10px; margin: 15px 0; text-align: center; border-left: 4px solid #f59e0b; }
+        .calculation-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }
+        .calculation-total { font-size: 18px; font-weight: bold; color: #4caf50; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-size: 13px; color: #ccc; }
+        .input-group input, .input-group textarea { width: 100%; padding: 10px; border-radius: 8px; border: none; font-size: 15px; background: #0f3460; color: white; text-align: center; }
+        .input-group textarea { text-align: left; }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+        .key { background: #0f3460; padding: 10px; text-align: center; font-size: 18px; cursor: pointer; border-radius: 8px; }
+        .key:hover { background: #e94560; }
+        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 15px; cursor: pointer; margin-top: 10px; }
+        .btn-primary { background: #4caf50; color: white; }
+        .btn-secondary { background: #e94560; color: white; }
+        .btn-cancel { background: #dc2626; color: white; }
+        .cashier-section { margin-top: 15px; padding-top: 12px; border-top: 1px solid #333; }
+        .cashier-section h4 { color: #f59e0b; margin-bottom: 10px; font-size: 14px; }
+        .movement-item { background: #0f3460; padding: 8px 12px; border-radius: 8px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+        .movement-item button { background: #dc2626; padding: 4px 10px; font-size: 11px; margin: 0; width: auto; }
+        .add-movement { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .add-movement input { flex: 1; padding: 8px; border-radius: 8px; border: none; background: #0f3460; color: white; font-size: 13px; }
+        .add-movement button { width: auto; padding: 8px 15px; margin: 0; font-size: 12px; }
+        .variance-warning { background: #dc2626; padding: 12px; border-radius: 10px; margin-top: 15px; }
+        .variance-ok { background: #4caf50; padding: 12px; border-radius: 10px; margin-top: 15px; }
+        .reason-box { margin-top: 12px; }
+        .reason-box textarea { background: #0f3460; color: white; padding: 10px; width: 100%; border-radius: 8px; border: none; font-family: monospace; }
+        .refund-note { background: #dc2626; padding: 8px; border-radius: 8px; margin-bottom: 10px; text-align: center; font-size: 12px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2 id="modalTitle">Open Shift</h2>
+    
+    <div id="infoSection" style="display: none;">
+        <div class="info-card"><div class="info-label">Opening Cash</div><div class="info-value" id="infoOpeningCash">KSh 0</div></div>
+        <div class="info-card"><div class="info-label">Cash Sales</div><div class="info-value" id="infoCashSales">KSh 0</div></div>
+        <div class="info-card"><div class="info-label">Cash Refunds (M-Pesa Overpayments)</div><div class="info-value" id="infoRefunds">KSh 0</div></div>
+        
+        <div class="calculation-box">
+            <div class="calculation-row"><span>Opening Cash:</span><span id="calcOpening">KSh 0</span></div>
+            <div class="calculation-row"><span>+ Cash Sales:</span><span id="calcSales">KSh 0</span></div>
+            <div class="calculation-row"><span>- Cash Refunds:</span><span id="calcRefunds">KSh 0</span></div>
+            <div class="calculation-total"><span>Expected Cash in Drawer:</span><span id="calcExpected">KSh 0</span></div>
+        </div>
+        
+        <div class="info-card"><div class="info-label">Opening M-Pesa</div><div class="info-value" id="infoOpeningMpesa">KSh 0</div></div>
+        <div class="info-card"><div class="info-label">M-Pesa Received</div><div class="info-value" id="infoMpesaSales">KSh 0</div></div>
+        <div class="info-card"><div class="info-label">Expected M-Pesa</div><div class="info-value" id="infoExpectedMpesa">KSh 0</div></div>
+    </div>
+
+    <div id="openSection">
+        <div class="input-group"><label>Opening Cash (KSh)</label><input type="text" id="openingCash" placeholder="0" readonly><div class="keypad" id="cashKeypad"></div></div>
+        <div class="input-group"><label>Opening M-Pesa Balance (KSh)</label><input type="text" id="openingMpesa" placeholder="0" readonly><div class="keypad" id="mpesaKeypad"></div></div>
+        <button class="btn btn-primary" onclick="openShift()">Open Shift</button>
+        <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+
+    <div id="closeSection" style="display: none;">
+        <div class="refund-note" id="refundNote" style="display: none;">⚠️ Cash refunds given: KSh <span id="refundTotal">0</span></div>
+        
+        <div class="input-group"><label>Actual Cash Counted (KSh)</label><input type="text" id="actualCash" placeholder="0" readonly><div class="keypad" id="closeCashKeypad"></div></div>
+        <div class="input-group"><label>Actual M-Pesa Balance (KSh)</label><input type="text" id="actualMpesa" placeholder="0" readonly><div class="keypad" id="closeMpesaKeypad"></div></div>
+        
+        <div class="cashier-section">
+            <h4>➕ Cash In (Money Added to Drawer)</h4>
+            <div id="cashInList"></div>
+            <div class="add-movement">
+                <input type="text" id="cashInDesc" placeholder="Reason (Airtime, Service fee)">
+                <input type="text" id="cashInAmount" placeholder="Amount" style="width:100px">
+                <button class="btn-secondary" onclick="addCashIn()">+ Add</button>
+            </div>
+            
+            <h4 style="margin-top:12px;">➖ Cash Out (Money Taken from Drawer)</h4>
+            <div id="cashOutList"></div>
+            <div class="add-movement">
+                <input type="text" id="cashOutDesc" placeholder="Reason (Bill, Bank, Petty cash)">
+                <input type="text" id="cashOutAmount" placeholder="Amount" style="width:100px">
+                <button class="btn-secondary" onclick="addCashOut()">+ Add</button>
+            </div>
+        </div>
+
+        <div id="varianceSection"></div>
+
+        <div id="reasonSection" class="reason-box" style="display: none;">
+            <label>📝 Reason for Discrepancy</label>
+            <textarea id="discrepancyReason" rows="3" placeholder="Explain why the cash doesn't match..."></textarea>
+        </div>
+
+        <button class="btn btn-primary" onclick="closeShift()">Close Shift</button>
+        <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+</div>
+
+<script>
+let shiftData = null;
+let cashIns = [];
+let cashOuts = [];
+let refundsTotal = 0;
+
+async function loadRefunds() {
+    let response = await fetch('/api/refunds/by-shift');
+    let refunds = await response.json();
+    refundsTotal = 0;
+    for (let r of refunds) refundsTotal += r.amount;
+    return refundsTotal;
+}
+
+function setupKeypad(inputId, keypadId) {
+    let keypad = document.getElementById(keypadId);
+    if (!keypad) return;
+    keypad.innerHTML = '';
+    let numbers = ['1','2','3','4','5','6','7','8','9','0','00','CLEAR'];
+    for (let n of numbers) {
+        let btn = document.createElement('div');
+        btn.className = 'key';
+        btn.innerText = n;
+        btn.onclick = function() {
+            let input = document.getElementById(inputId);
+            if (n === 'CLEAR') {
+                input.value = '';
+            } else {
+                input.value = (input.value || '') + n;
+            }
+            calculateVariance();
+        };
+        keypad.appendChild(btn);
+    }
+}
+
+function updateExpectedCashDisplay() {
+    if (!shiftData) return;
+    
+    let totalCashIn = cashIns.reduce((sum, i) => sum + i.amount, 0);
+    let totalCashOut = cashOuts.reduce((sum, i) => sum + i.amount, 0);
+    let expectedCash = (shiftData.opening_cash || 0) + (shiftData.cash_sales || 0) + totalCashIn - totalCashOut - refundsTotal;
+    
+    document.getElementById('calcOpening').innerHTML = 'KSh ' + (shiftData.opening_cash || 0);
+    document.getElementById('calcSales').innerHTML = 'KSh ' + (shiftData.cash_sales || 0);
+    document.getElementById('calcRefunds').innerHTML = 'KSh ' + refundsTotal;
+    document.getElementById('calcExpected').innerHTML = 'KSh ' + expectedCash;
+    document.getElementById('infoRefunds').innerHTML = 'KSh ' + refundsTotal;
+}
+
+function calculateVariance() {
+    if (!shiftData) return;
+    
+    let actualCash = parseFloat(document.getElementById('actualCash').value) || 0;
+    let totalCashIn = cashIns.reduce((sum, i) => sum + i.amount, 0);
+    let totalCashOut = cashOuts.reduce((sum, i) => sum + i.amount, 0);
+    let expectedCash = (shiftData.opening_cash || 0) + (shiftData.cash_sales || 0) + totalCashIn - totalCashOut - refundsTotal;
+    let cashVariance = actualCash - expectedCash;
+    
+    let actualMpesa = parseFloat(document.getElementById('actualMpesa').value) || 0;
+    let expectedMpesa = (shiftData.opening_mpesa || 0) + (shiftData.mpesa_sales || 0);
+    let mpesaVariance = actualMpesa - expectedMpesa;
+    
+    let varianceSection = document.getElementById('varianceSection');
+    let reasonSection = document.getElementById('reasonSection');
+    
+    if (Math.abs(cashVariance) > 0.01) {
+        let warningClass = cashVariance > 0 ? 'variance-ok' : 'variance-warning';
+        let symbol = cashVariance > 0 ? '+' : '';
+        varianceSection.innerHTML = `<div class="${warningClass}">
+            <strong>Cash Variance: ${symbol}KSh ${Math.abs(cashVariance).toFixed(2)}</strong><br>
+            ${cashVariance > 0 ? 'Extra cash in drawer' : 'Cash shortage detected'}
+        </div>`;
+        reasonSection.style.display = 'block';
+    } else if (Math.abs(mpesaVariance) > 0.01) {
+        varianceSection.innerHTML = `<div class="variance-warning">
+            <strong>M-Pesa Variance: ${mpesaVariance.toFixed(2)}</strong>
+        </div>`;
+        reasonSection.style.display = 'block';
+    } else {
+        varianceSection.innerHTML = `<div class="variance-ok">✅ Cash and M-Pesa match</div>`;
+        reasonSection.style.display = 'none';
+    }
+}
+
+function addCashIn() {
+    let desc = document.getElementById('cashInDesc').value;
+    let amount = parseFloat(document.getElementById('cashInAmount').value);
+    if (!desc || isNaN(amount)) { alert('Enter description and amount'); return; }
+    cashIns.push({ desc: desc, amount: amount });
+    document.getElementById('cashInDesc').value = '';
+    document.getElementById('cashInAmount').value = '';
+    updateCashMovements();
+    updateExpectedCashDisplay();
+    calculateVariance();
+}
+
+function addCashOut() {
+    let desc = document.getElementById('cashOutDesc').value;
+    let amount = parseFloat(document.getElementById('cashOutAmount').value);
+    if (!desc || isNaN(amount)) { alert('Enter description and amount'); return; }
+    cashOuts.push({ desc: desc, amount: amount });
+    document.getElementById('cashOutDesc').value = '';
+    document.getElementById('cashOutAmount').value = '';
+    updateCashMovements();
+    updateExpectedCashDisplay();
+    calculateVariance();
+}
+
+function removeCashIn(index) {
+    cashIns.splice(index, 1);
+    updateCashMovements();
+    updateExpectedCashDisplay();
+    calculateVariance();
+}
+
+function removeCashOut(index) {
+    cashOuts.splice(index, 1);
+    updateCashMovements();
+    updateExpectedCashDisplay();
+    calculateVariance();
+}
+
+function updateCashMovements() {
+    let containerIn = document.getElementById('cashInList');
+    let containerOut = document.getElementById('cashOutList');
+    let totalIn = 0, totalOut = 0;
+    
+    containerIn.innerHTML = '';
+    cashIns.forEach((c, i) => {
+        totalIn += c.amount;
+        containerIn.innerHTML += `<div class="movement-item"><span>➕ ${c.desc}</span><span>KSh ${c.amount}</span><button onclick="removeCashIn(${i})">✕</button></div>`;
+    });
+    
+    containerOut.innerHTML = '';
+    cashOuts.forEach((c, i) => {
+        totalOut += c.amount;
+        containerOut.innerHTML += `<div class="movement-item"><span>➖ ${c.desc}</span><span>KSh ${c.amount}</span><button onclick="removeCashOut(${i})">✕</button></div>`;
+    });
+    
+    if (shiftData) {
+        document.getElementById('infoCashIn').innerHTML = 'KSh ' + totalIn;
+        document.getElementById('infoCashOut').innerHTML = 'KSh ' + totalOut;
+    }
+}
+
+async function loadShiftData() {
+    let response = await fetch('/api/shift/active');
+    let data = await response.json();
+    if (data.shift) {
+        shiftData = data.shift;
+        await loadRefunds();
+        
+        document.getElementById('modalTitle').innerText = 'Close Shift';
+        document.getElementById('openSection').style.display = 'none';
+        document.getElementById('closeSection').style.display = 'block';
+        document.getElementById('infoSection').style.display = 'block';
+        
+        document.getElementById('infoOpeningCash').innerHTML = 'KSh ' + (shiftData.opening_cash || 0);
+        document.getElementById('infoCashSales').innerHTML = 'KSh ' + (shiftData.cash_sales || 0);
+        document.getElementById('infoOpeningMpesa').innerHTML = 'KSh ' + (shiftData.opening_mpesa || 0);
+        document.getElementById('infoMpesaSales').innerHTML = 'KSh ' + (shiftData.mpesa_sales || 0);
+        let expectedMpesa = (shiftData.opening_mpesa || 0) + (shiftData.mpesa_sales || 0);
+        document.getElementById('infoExpectedMpesa').innerHTML = 'KSh ' + expectedMpesa;
+        
+        if (refundsTotal > 0) {
+            document.getElementById('refundNote').style.display = 'block';
+            document.getElementById('refundTotal').innerHTML = refundsTotal;
+        }
+        
+        updateExpectedCashDisplay();
+        
+        setupKeypad('actualCash', 'closeCashKeypad');
+        setupKeypad('actualMpesa', 'closeMpesaKeypad');
+    } else {
+        document.getElementById('modalTitle').innerText = 'Open Shift';
+        document.getElementById('openSection').style.display = 'block';
+        document.getElementById('closeSection').style.display = 'none';
+        document.getElementById('infoSection').style.display = 'none';
+        setupKeypad('openingCash', 'cashKeypad');
+        setupKeypad('openingMpesa', 'mpesaKeypad');
+    }
+}
+
+async function openShift() {
+    let openingCash = parseFloat(document.getElementById('openingCash').value);
+    let openingMpesa = parseFloat(document.getElementById('openingMpesa').value) || 0;
+    
+    if (isNaN(openingCash)) {
+        alert('Enter opening cash balance');
+        return;
+    }
+    
+    let response = await fetch('/api/shift/open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opening_cash: openingCash, opening_mpesa: openingMpesa })
+    });
+    let result = await response.json();
+    if (result.success) {
+        alert('Shift opened successfully');
+        closeModal();
+    } else {
+        alert('Error: ' + result.error);
+    }
+}
+
+async function closeShift() {
+    let actualCash = parseFloat(document.getElementById('actualCash').value);
+    let actualMpesa = parseFloat(document.getElementById('actualMpesa').value) || 0;
+    let notes = document.getElementById('discrepancyReason').value;
+    
+    let totalCashIn = cashIns.reduce((sum, i) => sum + i.amount, 0);
+    let totalCashOut = cashOuts.reduce((sum, i) => sum + i.amount, 0);
+    
+    if (isNaN(actualCash)) {
+        alert('Enter actual cash counted');
+        return;
+    }
+    
+    let expectedCash = (shiftData.opening_cash || 0) + (shiftData.cash_sales || 0) + totalCashIn - totalCashOut - refundsTotal;
+    let cashVariance = actualCash - expectedCash;
+    
+    if (Math.abs(cashVariance) > 0.01 && !notes) {
+        alert('Please provide a reason for the cash discrepancy');
+        return;
+    }
+    
+    let finalNotes = notes || '';
+    if (refundsTotal > 0) {
+        finalNotes = (notes ? notes + '\n' : '') + 'M-Pesa overpayment cash refunds total: KSh ' + refundsTotal;
+    }
+    
+    let response = await fetch('/api/shift/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            actual_cash: actualCash, 
+            actual_mpesa: actualMpesa, 
+            notes: finalNotes,
+            total_cash_in: totalCashIn,
+            total_cash_out: totalCashOut
+        })
+    });
+    let result = await response.json();
+    if (result.success) {
+        let msg = 'Shift closed!\n\n';
+        msg += 'Expected Cash: KSh ' + expectedCash + '\n';
+        msg += 'Actual Cash: KSh ' + actualCash + '\n';
+        msg += 'Cash Variance: ' + (result.cash_variance >= 0 ? '+' : '') + result.cash_variance.toFixed(2);
+        alert(msg);
+        closeModal();
+    } else {
+        alert('Error: ' + result.error);
+    }
+}
+
+function closeModal() {
+    if (window.parent && window.parent.closeShiftModal) {
+        window.parent.closeShiftModal();
+    } else {
+        window.close();
+    }
+}
+
+loadShiftData();
+</script>
+</body>
+</html>
