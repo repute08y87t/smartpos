@@ -1,44 +1,40 @@
 const express = require('express');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
+const { createClient } = require('@libsql/client');
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Local SQLite database connection
-const db = new sqlite3.Database(path.join(__dirname, 'data', 'pos.db'));
+// Local SQLite database using libsql (file-based, works on Render)
+const db = createClient({
+    url: `file:${path.join(__dirname, 'data', 'pos.db')}`
+});
 
-// Helper function to run SQL queries with promises
-function runQuery(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
-            if (err) {
-                console.error('Query error:', err.message);
-                reject(err);
-            } else {
-                resolve({ rows: rows });
-            }
-        });
-    });
+// Helper function to run SQL queries
+async function runQuery(sql, params = []) {
+    try {
+        const result = await db.execute({ sql, args: params });
+        return { rows: result.rows };
+    } catch (err) {
+        console.error('Query error:', err);
+        throw err;
+    }
 }
 
-function run(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        db.run(sql, params, function(err) {
-            if (err) {
-                console.error('Run error:', err.message);
-                reject(err);
-            } else {
-                resolve({ lastID: this.lastID, changes: this.changes });
-            }
-        });
-    });
+async function run(sql, params = []) {
+    try {
+        const result = await db.execute({ sql, args: params });
+        return { lastID: result.lastInsertRowId, changes: result.rowsAffected };
+    } catch (err) {
+        console.error('Run error:', err);
+        throw err;
+    }
 }
 
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: 'SmartPOS running on local database' });
+    res.json({ status: 'ok', message: 'SmartPOS running' });
 });
 
 app.get('/api/products', async (req, res) => {
@@ -57,7 +53,7 @@ app.post('/api/products', async (req, res) => {
             'INSERT INTO products (name, price, cost_price, stock, sku, category, subcategory, brand, pack_size, pack_cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [name, price, cost_price || 0, stock || 0, sku || null, category || 'General', subcategory || '', brand || '', pack_size || 1, pack_cost || 0]
         );
-        res.json({ id: result.lastID, message: 'Product added' });
+        res.json({ id: Number(result.lastID), message: 'Product added' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -659,5 +655,4 @@ app.delete('/api/clear/sales', async (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log('Server on http://localhost:' + PORT);
-    console.log('Mobile access: http://192.168.1.166:' + PORT);
 });
